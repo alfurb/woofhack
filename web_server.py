@@ -17,11 +17,46 @@ app.config.update(dict(
 ))
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
-@app.route("/")
-def hello():
-    print(os.path.dirname(os.path.realpath(__file__)))
-    return Template(filename="templates/template.txt").render()
+# Load the problems
+problems = {}
+for name in os.listdir('problems'):
+    base_path = os.path.join('problems', name)
+    problem = {}
+    problem["name"] = name
+    problem["description"] = ""
+    with open(os.path.join(base_path, 'description.html')) as f:
+        problem["description"] = f.read()
+    problem["tests"] = []
+    has_solution = os.path.exists(os.path.join(base_path, 'solution.py'))
+    test_base_dir = os.path.join(base_path, 'tests')
+    assert os.path.exists(test_base_dir)
+    for tname in os.listdir(test_base_dir):
+        test_dir = os.path.join(test_base_dir, tname)
+        test = {}
+        test["name"] = tname
+        test["input"] = os.path.join(test_dir, 'in')
+        test["output"] = os.path.join(test_dir, 'out')
+        assert os.path.exists(test["input"])
+        assert has_solution or os.path.exists(test["output"])
+        problem["tests"].append(test)
+    problems[name] = problem
+print (problems)
 
+@app.route("/")
+@app.route("/index")
+def index():
+    return Template(filename="templates/index.html").render(problems=problems)
+
+@app.route("/submit/<problem>", methods=['GET', 'POST'])
+def submit(problem):
+    if request.method == 'GET':
+        return Template(filename="templates/submit.html").render(name=problem)
+    f = request.files['file']
+    print(f)
+    path = os.path.join('submissions', problem)
+    os.makedirs(path, exist_ok=True)
+    f.save('submissions/{0}/submitted_solution.cpp'.format(problem))
+    return redirect("/")
 
 def connect_db():
     """Connects to the specific database."""

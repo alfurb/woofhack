@@ -1,0 +1,22 @@
+<%
+    rows = [[v for v in range(0,10)] for row in range(0,10)]
+%>
+<style>
+  table, th, td {
+     border: 1px solid black;
+  }
+</style>
+<h1>Here is a list of all the problems we have</h1>
+<table>
+    % for name in problems:
+        ${makerow(problems[name])}
+    % endfor
+</table>
+
+<%def name="makerow(problem)">
+    <tr>
+        <td>${problem["name"]}</td>\
+        <td>${problem["description"]}</td>\
+        <td><a href="/submit/${problem["name"]}">view</a></td>\
+    </tr>
+</%def>
