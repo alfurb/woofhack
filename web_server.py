@@ -104,7 +104,8 @@ def run(problem, submission_folder_path, file_path, language):
         # Convert byte string to utf8 string
         stdout = output[0].decode()
         if p.returncode != 0:
-            res = Result(test.name, Classification.Error, "", output[1], False)
+            error = output[1].decode()
+            res = Result(test.name, Classification.Error, "", error, False)
         elif stdout == test.out:
             res = Result(test.name, Classification.Accepted, "", "", True)
         else:
