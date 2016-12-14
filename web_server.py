@@ -1,4 +1,5 @@
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from mako.template import Template
 import os
 import sqlite3
 
@@ -18,7 +19,8 @@ app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
 @app.route("/")
 def hello():
-    return "Hello World"
+    print(os.path.dirname(os.path.realpath(__file__)))
+    return Template(filename="templates/template.txt").render()
 
 
 def connect_db():
@@ -28,5 +30,35 @@ def connect_db():
     return rv
 
 
+def get_db():
+    """Opens a new database connection if there is none yet for the
+    current application context.
+    """
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+
+
+@app.teardown_appcontext
+def close_db(error):
+    """Closes the database again at the end of the request."""
+    if hasattr(g, 'sqlite_db'):
+        g.sqlite_db.close()
+
+
+def init_db():
+    db = get_db()
+    with app.open_resource('schema.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+    db.commit()
+
+
+@app.cli.command('initdb')
+def initdb_command():
+    """Initializes the database."""
+    init_db()
+    print('Initialized the database.')
+
+
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True, port=5001)
