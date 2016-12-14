@@ -1,8 +1,20 @@
+<style>
+  .code {
+    border: 1px solid black;
+    padding: 5px;
+  }
+</style>
+
 <h1>Result</h1>
 % for result in results:
   <h2>${result.name} - ${result.classification}</h2>
   % if not result.accepted:
-    <pre>${result.message.decode()}</pre>
+    % if result.input:
+      <h4>Input</h4>
+      <pre class="code">${result.input}</pre>
+    % endif
+    <h4>Output</h4>
+    <pre class="code">${result.message}</pre>
   % endif
 % endfor
 

@@ -6,6 +6,7 @@ import subprocess
 from datetime import datetime
 from enum import Enum
 from collections import namedtuple
+from difflib import ndiff
 
 
 # create our little application :)
@@ -31,7 +32,7 @@ Problem = namedtuple("Problem", ["name", "description", "tests"])
 
 Test = namedtuple("Test", ["name", "inp", "out"])
 
-Result = namedtuple("Result", ["name", "classification", "message", "accepted"])
+Result = namedtuple("Result", ["name", "classification", "input", "message", "accepted"])
 
 # Load the problems
 problems = {}
@@ -92,21 +93,27 @@ def run(problem, submission_folder_path, file_path, language):
         output = p.communicate()
         print("compile", output)
         if output[1]:
-            return [("Compilation", Classification.Error, output[1])]
+            error = output[1].decode()
+            return [Result("Compilation", Classification.Error, "", error, False)]
         output_path = "./" + output_path
     results = []
     for test in problems[problem].tests:
         p = subprocess.Popen([output_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate(input=test.inp.encode())
         print("run", output)
+        # Convert byte string to utf8 string
+        stdout = output[0].decode()
         if p.returncode != 0:
-            res = Result(test.name, Classification.Error, output[0], False)
-        elif output[0].decode() == test.out:
-            res = Result(test.name, Classification.Accepted, "", True)
+            res = Result(test.name, Classification.Error, "", output[1], False)
+        elif stdout == test.out:
+            res = Result(test.name, Classification.Accepted, "", "", True)
         else:
-            res = Result(test.name, Classification.Denied, output[0], False)
+            diff = ndiff(test.out.splitlines(), stdout.splitlines())
+            diff = map(lambda x: (x, "red" if x.startswith("- ") else "green" if x.startswith("+ ") else "grey"), diff)
+            diff = ["<span style='color:" + x[1] + "'>" + x[0] + "</span>" for x in diff]
+            diff = "\n".join(diff)
+            res = Result(test.name, Classification.Denied, test.inp, diff, False)
         results.append(res)
-    print(results)
     return results
 
 def connect_db():
