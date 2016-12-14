@@ -15,7 +15,7 @@ app.config.from_object(__name__)
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'flaskr.db'),
+    DATABASE=os.path.join(app.root_path, 'woofhack.db'),
     SECRET_KEY='development key',
     USERNAME='admin',
     PASSWORD='default'
@@ -74,6 +74,7 @@ def submit(problem):
         abort(404)
     if request.method == 'GET':
         return Template(filename="templates/submit.html").render(name=problem)
+
     f = request.files['file']
 
     date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
