@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Woofshack</title>
+</head>
+<body>
+  <script>
+  function logout(){
+    var old_url = window.location.host
+    var str = window.location.href.replace("https://", "https://" + new Date().getTime() + "@");
+    var xmlhttp;
+    if (window.XMLHttpRequest) xmlhttp=new XMLHttpRequest();
+    else xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+    xmlhttp.onreadystatechange=function()
+    {
+      if (xmlhttp.readyState==4) location.reload();
+    }
+    xmlhttp.open("GET",str,true);
+    xmlhttp.setRequestHeader("Authorization","Basic YXNkc2E6")
+    xmlhttp.send();
+    window.location.href = old_url;
+    return false;
+  }
+  </script>
+  <h1>Woofshack</h1>
+  % if auth.username():
+  <a href="javascript:logout();">log out</a>
+  % endif
+  <hr>
+  ${self.body()}
+</body>
+</html>

@@ -1,15 +1,19 @@
-from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
-from mako.template import Template
 import os
 import sqlite3
 import subprocess
 import json
 import codecs
+import functools
+import base64
 from datetime import datetime
 from enum import Enum
 from collections import namedtuple
 from difflib import ndiff
 
+from passlib.hash import bcrypt_sha256
+from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from mako.template import Template
+from mako.lookup import TemplateLookup
 from flask_httpauth import HTTPBasicAuth
 from flask_sqlalchemy import SQLAlchemy
 
@@ -21,9 +25,7 @@ auth = HTTPBasicAuth()
 # Load default config and override config from an environment variable
 app.config.update(dict(
     #DATABASE=os.path.join(app.root_path, 'woofhack.db'),
-    SECRET_KEY='development key',
-    USERNAME='admin',
-    PASSWORD='default'
+    SECRET_KEY=b'\x12\xa7\xfc\x0b\xcdm\xdb\xde\x7f\xa76a\x0b\x1e\xbc\x15\xa4\xbc\xec\x01\xd4i\x8c\x90',
 ))
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
@@ -36,7 +38,7 @@ class User(db.Model):
     pw_hash = db.Column(db.String(64))
     admin = db.Column(db.Boolean())
 
-    def __init__(self, username, pw_hash, admin):
+    def __init__(self, username, pw_hash, admin=False):
         self.username = username
         self.pw_hash = pw_hash
         self.admin = admin
@@ -88,62 +90,80 @@ Test = namedtuple("Test", ["name", "inp", "out"])
 
 Result = namedtuple("Result", ["name", "classification", "input", "message", "accepted"])
 
-# Load the problems
-'''problems = {}
-for name in os.listdir('problems'):
-    base_path = os.path.join('problems', name)
-    with open(os.path.join(base_path, 'description.html')) as f:
-        description = f.read()
-    has_solution = os.path.exists(os.path.join(base_path, 'solution.py'))
-    test_base_dir = os.path.join(base_path, 'tests')
-    assert os.path.exists(test_base_dir)
 
-    tests = []
-    for tname in os.listdir(test_base_dir):
-        test_dir = os.path.join(test_base_dir, tname)
-        # Read input
-        inp = os.path.join(test_dir, 'in')
-        with open(inp) as f:
-            # Strip trailing newline
-            inp = f.read().strip()
-        # Read in expected output
-        out = os.path.join(test_dir, 'out')
-        with open(out) as f:
-            # Strip trailing newline
-            out = f.read().strip()
-        tests.append(Test(tname, inp, out))
+# Wrapper to add a header to all Templates
+lookup = TemplateLookup(directories=['./templates'])
+def serve_template(templatename, **kwargs):
+    template = lookup.get_template(templatename)
+    return template.render(**kwargs, auth=auth)
 
-    problems[name] = Problem(name, description, tests)
-print (problems)'''
+# A decorator for requiring admin privileges on routes
+def admin_required(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        if not auth.username():
+            abort(403)
+        else:
+            user = User.query.filter_by(username=auth.username()).first()
+            if not user.admin:
+                abort(403)
+        return f(*args, **kwargs)
+    return wrapped
+
+# Used to verify passwords submitted with those stored in our database
+@auth.verify_password
+def verify_password(username, password):
+    user = User.query.filter_by(username = username).first()
+    try:
+        if not user or not bcrypt_sha256.verify(password, user.pw_hash):
+            return False
+    except ValueError:
+        return False
+    return True
 
 @app.route("/")
 @app.route("/index")
 def index():
     p = Problem.query.all()
-    return Template(filename="templates/index.html").render(problems=p)
+    return serve_template("index.html", problems=p)
 
-@auth.verify_password
-def verify_password(username, password):
-    user = User.query.filter_by(username = username).first()
-    if not user or not user.pw_hash == password:
-        return False
-    g.user = user
-    return True
+@app.route('/register', methods=["GET", "POST"])
+def register():
+    print(session)
+    if request.method == "GET":
+        return serve_template("register.html")
 
-@app.route('/safe')
-@auth.login_required
-def safe():
-    print(User.query.all())
-    return "Hello, %s!" % auth.username()
+    username = request.form.get("username")
+    password = request.form.get("password")
+    password_repeated = request.form.get("password_repeated")
+    if not username or not password or not password_repeated:
+        return serve_template("register.html", error="All fields must be filled out")
 
+    if password != password_repeated:
+        return serve_template("register.html", error="Passwords do not match")
+
+    # User already exists
+    if User.query.filter_by(username = username).first():
+        return serve_template("register.html", error="User is already registered")
+
+    try:
+        password = bcrypt_sha256.hash(password)
+        user = User(username, password)
+        db.session.add(user)
+        db.session.commit()
+        return redirect("/")
+    except Exception as e:
+        print(e)
+        abort(500)
 
 @app.route("/submit/<title>", methods=['GET', 'POST'])
+@auth.login_required
 def submit(title):
     prob = Problem.query.filter_by(title = title).first()
     if not prob:
         abort(404)
     if request.method == 'GET':
-        return Template(filename="templates/submit.html").render(name=prob.title)
+        return serve_template("submit.html", name=prob.title)
 
     f = request.files['file']
 
@@ -154,7 +174,7 @@ def submit(title):
     f.save(file_path)
 
     res = run(prob, path, file_path, "c++")
-    return Template(filename="templates/results.html").render(results=res)
+    return serve_template("results.html", results=res)
 
 def run(problem, submission_folder_path, file_path, language):
     """returns a list of tuples (test, classification, message, accepted)"""
@@ -190,9 +210,11 @@ def run(problem, submission_folder_path, file_path, language):
 
 
 @app.route("/new_problem", methods=['GET', 'POST'])
+@auth.login_required
+@admin_required
 def new_problem():
     if request.method == 'GET':
-        return Template(filename="templates/new_problem.html").render()
+        return serve_template("new_problem.html")
     try:
         title = request.form["title"]
         descr = request.files["description"]
@@ -213,7 +235,7 @@ def new_problem():
     except Exception as e:
         print(e)
         abort(500)
-    return Template(filename="templates/new_problem.html").render()
+    return serve_template("new_problem.html")
 
 def description_to_html(descr):
     # TODO: check if markdown or plaintext and convert to html
@@ -224,43 +246,6 @@ def insert_tests_from_json(file, cursor, problem_id, test_type):
     f = [(problem_id, x, f[x], test_type) for x in f]
     cursor.executemany('INSERT INTO tests (problem, input, output, test_type) VALUES (?, ?, ?, ?);', f)
 
-'''
-def connect_db():
-    """Connects to the specific database."""
-    rv = sqlite3.connect(app.config['DATABASE'])
-    rv.row_factory = sqlite3.Row
-    return rv
-
-
-def get_db():
-    """Opens a new database connection if there is none yet for the
-    current application context.
-    """
-    if not hasattr(g, 'sqlite_db'):
-        g.sqlite_db = connect_db()
-    return g.sqlite_db
-
-
-@app.teardown_appcontext
-def close_db(error):
-    """Closes the database again at the end of the request."""
-    if hasattr(g, 'sqlite_db'):
-        g.sqlite_db.close()
-
-
-def init_db():
-    db = get_db()
-    with app.open_resource('schema.sql', mode='r') as f:
-        db.cursor().executescript(f.read())
-    db.commit()
-
-
-@app.cli.command('initdb')
-def initdb_command():
-    """Initializes the database."""
-    init_db()
-    print('Initialized the database.')
-'''
-
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    context = ('server.key.crt', 'server.key.key')
+    app.run(debug=True, port=5001, ssl_context=context)
