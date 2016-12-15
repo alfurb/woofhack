@@ -5,11 +5,12 @@ import json
 import codecs
 import functools
 import base64
-from datetime import datetime
 from enum import Enum
 from collections import namedtuple
+from datetime import datetime
 from difflib import ndiff
 
+import markdown2
 from passlib.hash import bcrypt_sha256
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
 from mako.template import Template
@@ -95,6 +96,7 @@ Result = namedtuple("Result", ["name", "classification", "input", "message", "ac
 lookup = TemplateLookup(directories=['./templates'])
 def serve_template(templatename, **kwargs):
     template = lookup.get_template(templatename)
+    print(auth.username())
     return template.render(**kwargs, auth=auth)
 
 # A decorator for requiring admin privileges on routes
@@ -223,6 +225,7 @@ def new_problem():
         date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
 
         descr = description_to_html(descr)
+        print(descr)
 
         prob = Problem(title, descr, datetime.now())
         db.session.add(prob)
@@ -239,7 +242,7 @@ def new_problem():
 
 def description_to_html(descr):
     # TODO: check if markdown or plaintext and convert to html
-    return descr.read().decode('utf-8')
+    return markdown2.markdown(descr.read().decode('utf-8'))
 
 def insert_tests_from_json(file, cursor, problem_id, test_type):
     f = json.loads(file.read().decode('utf-8'))
