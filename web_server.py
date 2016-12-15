@@ -143,15 +143,6 @@ def new_problem():
     print(tuple(request.form))
     return Template(filename="templates/new_problem.html").render()
 
-    date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
-    path = os.path.join('submissions', problem, date_str)
-    os.makedirs(path, exist_ok=True)
-    file_path = os.path.join(path, 'submitted.cpp')
-    f.save(file_path)
-
-    res = run(problem, path, file_path, "c++")
-    return Template(filename="templates/results.html").render(results=res)
-
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
