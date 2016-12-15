@@ -6,13 +6,13 @@ s = Problem("sum", "print the sum of two numbers", datetime.now())
 db.session.add(d)
 db.session.add(s)
 db.session.commit()
-d_tests = [("test 1", "5\n5", "0", d), ("test 2", "15\n5", "10", d), ("test 3", "2\n3", "-1", d)]
+d_tests = [("test 1", "5\n5", "0", "example", d), ("test 2", "15\n5", "10", "test", d), ("test 3", "2\n3", "-1", "test", d)]
 for i in d_tests:
     test = TestCase(*i)
     db.session.add(test)
 db.session.commit()
 
-d_tests = [("test 1", "5\n5", "10", s), ("test 2", "15\n5", "20", s), ("test 3", "2\n3", "5", s)]
+d_tests = [("test 1", "5\n5", "10", "example", s), ("test 2", "15\n5", "20", "test", s), ("test 3", "2\n3", "5", "test", s)]
 for i in d_tests:
     test = TestCase(*i)
     db.session.add(test)

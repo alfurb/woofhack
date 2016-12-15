@@ -63,15 +63,17 @@ class TestCase(db.Model):
     name = db.Column(db.String(100))
     inp = db.Column(db.Text())
     out = db.Column(db.Text())
+    test_type = db.Column(db.Text())
 
     problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'))
     problem = db.relationship('Problem',
         backref=db.backref('tests', lazy='dynamic'))
 
-    def __init__(self, name, inp, out, problem):
+    def __init__(self, name, inp, out, test_type, problem):
         self.name = name
         self.inp = inp
         self.out = out
+        self.test_type = test_type
         self.problem = problem
 
     def __repr__(self):
@@ -193,37 +195,36 @@ def run(problem, submission_folder_path, file_path, language):
 def new_problem():
     if request.method == 'GET':
         return Template(filename="templates/new_problem.html").render()
-    try:
-        title = request.form["title"]
-        descr = request.files["description"]
-        examples = request.files["example"]
-        tests = request.files["tests"]
-        date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
+    #try:
+    title = request.form["title"]
+    descr = request.files["description"]
+    examples = request.files["testcases"]
 
-        descr = description_to_html(descr)
-        print(descr)
+    descr = description_to_html(descr)
 
-        prob = Problem(title, descr, datetime.now())
-        db.session.add(prob)
-        db.session.commit()
-        problem_id = prob.id
+    prob = Problem(title, descr, datetime.now())
+    problem_id = prob.id
+    db.session.add(prob)
+    print(problem_id)
 
-        insert_tests_from_json(examples, c, problem_id, 'example')
-        insert_tests_from_json(tests, c, problem_id, 'test')
-        db.commit()
-    except Exception as e:
-        print(e)
-        abort(500)
+    insert_tests_from_json(examples, db, prob)
+    db.session.commit()
+    # except Exception as e:
+    #     print(e)
+    #     abort(500)
     return Template(filename="templates/new_problem.html").render()
 
+
 def description_to_html(descr):
-    # TODO: check if markdown or plaintext and convert to html
     return markdown2.markdown(descr.read().decode('utf-8'))
 
-def insert_tests_from_json(file, cursor, problem_id, test_type):
+
+def insert_tests_from_json(file, db, prob):
     f = json.loads(file.read().decode('utf-8'))
-    f = [(problem_id, x, f[x], test_type) for x in f]
-    cursor.executemany('INSERT INTO tests (problem, input, output, test_type) VALUES (?, ?, ?, ?);', f)
+    for x in f:
+        db.session.add(TestCase(x['name'], x['input'], x['output'], x['type'], prob))
+    #f = [TestCase(x['name'], x['input'], x['output'], x['type'], problem_id) for x in f]
+    #db.session.add(f)
 
 '''
 def connect_db():

@@ -9,8 +9,9 @@
          <p>
              Problem name: <input type="text" name="title"><br/>
              Problem Description (plaintex, HTML or Markdown): <input type="file" name="description"><br/>
-             Input/Output example (json): <input type="file" name="example"><br/>
-             Test Cases (json): <input type="file" name="tests"><br/>
+             Test cases (json): <input type="file" name="testcases"><br/>
+             Note that all test cases must be a separate json object with "name", "input", "output" and "type" attributes <br/>
+             The type of a test case may be "example" or "test".<br/>
              <input type="submit" value="Upload"><input type="reset">
          </p>
       </form>
