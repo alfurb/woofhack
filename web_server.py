@@ -4,7 +4,7 @@ import os
 import sqlite3
 import subprocess
 import json
-import codecs
+import markdown2
 from datetime import datetime
 from enum import Enum
 from collections import namedtuple
@@ -201,6 +201,7 @@ def new_problem():
         date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
 
         descr = description_to_html(descr)
+        print(descr)
 
         prob = Problem(title, descr, datetime.now())
         db.session.add(prob)
@@ -217,7 +218,7 @@ def new_problem():
 
 def description_to_html(descr):
     # TODO: check if markdown or plaintext and convert to html
-    return descr.read().decode('utf-8')
+    return markdown2.markdown(descr.read().decode('utf-8'))
 
 def insert_tests_from_json(file, cursor, problem_id, test_type):
     f = json.loads(file.read().decode('utf-8'))
