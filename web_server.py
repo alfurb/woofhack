@@ -66,7 +66,10 @@ print (problems)
 @app.route("/")
 @app.route("/index")
 def index():
-    return Template(filename="templates/index.html").render(problems=problems)
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    p = db.execute("SELECT id, title, description, created FROM problems")
+    return Template(filename="templates/index.html").render(problems=p)
 
 @app.route("/submit/<problem>", methods=['GET', 'POST'])
 def submit(problem):
@@ -117,6 +120,37 @@ def run(problem, submission_folder_path, file_path, language):
             res = Result(test.name, Classification.Denied, test.inp, diff, False)
         results.append(res)
     return results
+
+
+@app.route("/new_problem", methods=['GET', 'POST'])
+def new_problem():
+    if request.method == 'GET':
+        return Template(filename="templates/new_problem.html").render()
+
+    try:
+        title = request.form["title"]
+        descr = request.form["description"]
+        prob_input = request.form["input"]
+        prob_output = request.form["output"]
+        date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
+        db = get_db()
+        db.execute('INSERT INTO problems (title, description, created, no_tests) VALUES(?, ?, ?, ?)', (title, descr, date_str, 0))
+        db.commit()
+    except Exception as e:
+        print(e)
+        abort(500)
+
+    print(tuple(request.form))
+    return Template(filename="templates/new_problem.html").render()
+
+    date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
+    path = os.path.join('submissions', problem, date_str)
+    os.makedirs(path, exist_ok=True)
+    file_path = os.path.join(path, 'submitted.cpp')
+    f.save(file_path)
+
+    res = run(problem, path, file_path, "c++")
+    return Template(filename="templates/results.html").render(results=res)
 
 def connect_db():
     """Connects to the specific database."""

@@ -5,15 +5,15 @@
 </style>
 <h1>Here is a list of all the problems we have</h1>
 <table>
-    % for name in problems:
-        ${makerow(problems[name])}
+    % for prob in problems:
+        ${makerow(prob)}
     % endfor
 </table>
 
 <%def name="makerow(problem)">
     <tr>
-        <td>${problem.name}</td>\
-        <td>${problem.description}</td>\
-        <td><a href="/submit/${problem.name}">view</a></td>\
+        <td>${problem['title']}</td>\
+        <td>${problem['description']}</td>\
+        <td><a href="/submit/${problem['title']}">view</a></td>\
     </tr>
 </%def>
