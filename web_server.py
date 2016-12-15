@@ -217,7 +217,6 @@ def new_problem():
 
 def description_to_html(descr):
     # TODO: check if markdown or plaintext and convert to html
-    print(dir(descr))
     return descr.read().decode('utf-8')
 
 def insert_tests_from_json(file, cursor, problem_id, test_type):
