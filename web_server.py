@@ -8,19 +8,72 @@ from enum import Enum
 from collections import namedtuple
 from difflib import ndiff
 
+from flask_httpauth import HTTPBasicAuth
+from flask_sqlalchemy import SQLAlchemy
 
 # create our little application :)
 app = Flask(__name__)
 app.config.from_object(__name__)
+auth = HTTPBasicAuth()
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'woofhack.db'),
+    #DATABASE=os.path.join(app.root_path, 'woofhack.db'),
     SECRET_KEY='development key',
     USERNAME='admin',
     PASSWORD='default'
 ))
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///woofhack.db'
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True)
+    pw_hash = db.Column(db.String(64))
+    admin = db.Column(db.Date())
+
+    def __init__(self, username, pw_hash, admin):
+        self.username = username
+        self.pw_hash = pw_hash
+        self.admin = admin
+
+    def __repr__(self):
+        return '<User %r>' % self.username
+
+class Problem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(1024))
+    created = db.Column(db.Date())
+
+    def __init__(self, title, description, created):
+        self.title = title
+        self.description = description
+        self.created = created
+
+    def __repr__(self):
+        return '<Problem %r>' % self.title
+
+class TestCase(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    inp = db.Column(db.Text())
+    out = db.Column(db.Text())
+
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'))
+    problem = db.relationship('Problem',
+        backref=db.backref('tests', lazy='dynamic'))
+
+    def __init__(self, name, inp, out, problem):
+        self.name = name
+        self.inp = name
+        self.out = out
+        self.problem = problem
+
+    def __repr__(self):
+        return '<TestCase %r>' % self.name
 
 # Specify classes
 class Classification():
@@ -28,14 +81,13 @@ class Classification():
     Denied = "Denied"
     Error = "Error"
 
-Problem = namedtuple("Problem", ["name", "description", "tests"])
 
 Test = namedtuple("Test", ["name", "inp", "out"])
 
 Result = namedtuple("Result", ["name", "classification", "input", "message", "accepted"])
 
 # Load the problems
-problems = {}
+'''problems = {}
 for name in os.listdir('problems'):
     base_path = os.path.join('problems', name)
     with open(os.path.join(base_path, 'description.html')) as f:
@@ -60,33 +112,46 @@ for name in os.listdir('problems'):
         tests.append(Test(tname, inp, out))
 
     problems[name] = Problem(name, description, tests)
-print (problems)
-
+print (problems)'''
 
 @app.route("/")
 @app.route("/index")
 def index():
-    db = get_db()
-    db.row_factory = sqlite3.Row
-    p = db.execute("SELECT id, title, description, created FROM problems")
+    p = Problem.query.all()
     return Template(filename="templates/index.html").render(problems=p)
 
-@app.route("/submit/<problem>", methods=['GET', 'POST'])
-def submit(problem):
-    if problem not in problems:
+@auth.verify_password
+def verify_password(username, password):
+    user = User.query.filter_by(username = username).first()
+    if not user or not user.pw_hash == password:
+        return False
+    g.user = user
+    return True
+
+@app.route('/safe')
+@auth.login_required
+def safe():
+    print(User.query.all())
+    return "Hello, %s!" % auth.username()
+
+
+@app.route("/submit/<title>", methods=['GET', 'POST'])
+def submit(title):
+    prob = Problem.query.filter_by(title = title).first()
+    if not prob:
         abort(404)
     if request.method == 'GET':
-        return Template(filename="templates/submit.html").render(name=problem)
+        return Template(filename="templates/submit.html").render(name=prob.title)
 
     f = request.files['file']
 
     date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
-    path = os.path.join('submissions', problem, date_str)
+    path = os.path.join('submissions', title, date_str)
     os.makedirs(path, exist_ok=True)
     file_path = os.path.join(path, 'submitted.cpp')
     f.save(file_path)
 
-    res = run(problem, path, file_path, "c++")
+    res = run(prob, path, file_path, "c++")
     return Template(filename="templates/results.html").render(results=res)
 
 def run(problem, submission_folder_path, file_path, language):
@@ -133,16 +198,16 @@ def new_problem():
         prob_input = request.form["input"]
         prob_output = request.form["output"]
         date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
-        db = get_db()
-        db.execute('INSERT INTO problems (title, description, created, no_tests) VALUES(?, ?, ?, ?)', (title, descr, date_str, 0))
-        db.commit()
+        prob = Problem(title, descr, datetime.now())
+        db.session.add(prob)
+        db.session.commit()
     except Exception as e:
         print(e)
         abort(500)
 
     print(tuple(request.form))
     return Template(filename="templates/new_problem.html").render()
-
+'''
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -178,7 +243,7 @@ def initdb_command():
     """Initializes the database."""
     init_db()
     print('Initialized the database.')
-
+'''
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
