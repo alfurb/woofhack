@@ -34,7 +34,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
     pw_hash = db.Column(db.String(64))
-    admin = db.Column(db.Date())
+    admin = db.Column(db.Boolean())
 
     def __init__(self, username, pw_hash, admin):
         self.username = username
@@ -70,7 +70,7 @@ class TestCase(db.Model):
 
     def __init__(self, name, inp, out, problem):
         self.name = name
-        self.inp = name
+        self.inp = inp
         self.out = out
         self.problem = problem
 
@@ -168,7 +168,7 @@ def run(problem, submission_folder_path, file_path, language):
             return [Result("Compilation", Classification.Error, "", error, False)]
         output_path = "./" + output_path
     results = []
-    for test in problems[problem].tests:
+    for test in problem.tests:
         p = subprocess.Popen([output_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate(input=test.inp.encode())
         print("run", output)
