@@ -3,6 +3,8 @@ from mako.template import Template
 import os
 import sqlite3
 import subprocess
+import json
+import codecs
 from datetime import datetime
 from enum import Enum
 from collections import namedtuple
@@ -129,19 +131,38 @@ def new_problem():
 
     try:
         title = request.form["title"]
-        descr = request.form["description"]
-        prob_input = request.form["input"]
-        prob_output = request.form["output"]
+        descr = request.files["description"]
+        examples = request.files["example"]
+        tests = request.files["tests"]
         date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
+
+        descr = description_to_html(descr)
+
         db = get_db()
-        db.execute('INSERT INTO problems (title, description, created, no_tests) VALUES(?, ?, ?, ?)', (title, descr, date_str, 0))
+        c = db.cursor()
+        c.execute('INSERT INTO problems (title, description, created, no_tests) VALUES(?, ?, ?, ?)', (title, descr, date_str, 0))
+        problem_id = c.lastrowid
+
+        insert_tests_from_json(examples, c, problem_id, 'example')
+        insert_tests_from_json(tests, c, problem_id, 'test')
         db.commit()
     except Exception as e:
         print(e)
         abort(500)
-
-    print(tuple(request.form))
     return Template(filename="templates/new_problem.html").render()
+
+
+def description_to_html(descr):
+    # TODO: check if markdown or plaintext and convert to html
+    print(dir(descr))
+    return descr.read().decode('utf-8')
+
+
+def insert_tests_from_json(file, cursor, problem_id, test_type):
+    f = json.loads(file.read().decode('utf-8'))
+    f = [(problem_id, x, f[x], test_type) for x in f]
+    cursor.executemany('INSERT INTO tests (problem, input, output, test_type) VALUES (?, ?, ?, ?);', f)
+
 
 def connect_db():
     """Connects to the specific database."""
