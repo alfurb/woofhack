@@ -1,0 +1,16 @@
+<%inherit file="layout.html"/>
+<body>
+  <h1>Register to submit solutions</h1>
+  <form method="post" enctype="multipart/form-data">
+    User name:<br>
+    <input type="text" name="username"><br>
+    Password:<br>
+    <input type="password" name="password"><br>
+    Repeat password:<br>
+    <input type="password" name="password_repeated"><br>
+    <input type="submit" />
+    % if error:
+      <p style="color: red;">${error}</p>
+    % endif
+  </form>
+</body>
