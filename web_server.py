@@ -19,7 +19,7 @@ from flask_httpauth import HTTPBasicAuth
 from flask_sqlalchemy import SQLAlchemy
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 app.config.from_object(__name__)
 auth = HTTPBasicAuth()
 
@@ -130,6 +130,12 @@ def verify_password(username, password):
 def index():
     p = Problem.query.all()
     return serve_template("index.html", problems=p)
+
+
+@app.route("/static/<item>")
+def statix_file(item):
+    return app.send_static_file(item)
+
 
 @app.route('/register', methods=["GET", "POST"])
 def register():

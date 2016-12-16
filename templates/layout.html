@@ -1,46 +1,61 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-        <link rel=stylesheet type=text/css href="https://mooshak.ru.is/~python/stats/static/bootstrap.min.css">
-        <title>Woofhack</title>
-    </head>
-    <body>
-        <script>
-            function logout(){
-            var old_url = window.location.host
-            var str = window.location.href.replace("https://", "https://" + new Date().getTime() + "@") + "new_problem";
-            console.log(str);
-            var xmlhttp;
-            if (window.XMLHttpRequest) xmlhttp=new XMLHttpRequest();
-            else xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
-            xmlhttp.onreadystatechange=function()
-            {
-              if (xmlhttp.readyState==4) location.reload();
-            }
-            xmlhttp.open("GET",str,true);
-            xmlhttp.setRequestHeader("Authorization","Basic YXNkc2E6")
-            xmlhttp.send();
-            window.location.href = old_url;
-            return false;
-            }
-        </script>
-        <h1><img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="width:128px;height:128px;">Woofhack</h1>
-        % if auth.username():
-        <a href="javascript:logout();">log out</a>
-        % endif
-        <hr>
-        <div class="container-fluid">
-            <ul class="nav nav-pills">
+<style>
+    .nav-pills > li.active > a, .nav-pills > li.active > a:focus {
+        color: black;
+        background-color: #5EC8BD;
+    }
 
-                <li  class="active" ><a href="https://alfur.pythonanywhere.com/index">Problems</a></li>
+    .nav-pills > li.active > a:hover {
+        background-color: #7ED3CA;
+        color:black;
+    }
 
-                <li ><a href="https://alfur.pythonanywhere.com/new_problem">New Problem</a></li>
+    .nav-pills a{
+        color: #418C84
+    }
+</style>
+<head>
+    <link rel="shortcut icon" href="/static/favicon.ico">
+    <link rel=stylesheet type=text/css href="https://mooshak.ru.is/~python/stats/static/bootstrap.min.css">
+    <title>Woofhack</title>
+</head>
+<body>
+    <script>
+        function logout(){
+        var old_url = window.location.host
+        var str = window.location.href.replace("https://", "https://" + new Date().getTime() + "@") + "new_problem";
+        console.log(str);
+        var xmlhttp;
+        if (window.XMLHttpRequest) xmlhttp=new XMLHttpRequest();
+        else xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+        xmlhttp.onreadystatechange=function()
+        {
+          if (xmlhttp.readyState==4) location.reload();
+        }
+        xmlhttp.open("GET",str,true);
+        xmlhttp.setRequestHeader("Authorization","Basic YXNkc2E6")
+        xmlhttp.send();
+        window.location.href = old_url;
+        return false;
+        }
+    </script>
+    <h1><img src="/static/logo.png" alt="Logo" style="width:128px;height:148px;">Woofhack</h1>
+    % if auth.username():
+    <a href="javascript:logout();">log out</a>
+    % endif
+    <hr>
+    <div class="container-fluid">
+        <ul class="nav nav-pills">
 
-                <li ><a href="https://alfur.pythonanywhere.com/register">Register</a></li>
+            <li  class="active" ><a href="https://alfur.pythonanywhere.com/index">Problems</a></li>
 
-            </ul>
-            ${self.body()}
-        </div>
-    </body>
+            <li ><a href="https://alfur.pythonanywhere.com/new_problem">New Problem</a></li>
+
+            <li ><a href="https://alfur.pythonanywhere.com/register">Register</a></li>
+
+        </ul>
+        ${self.body()}
+    </div>
+</body>
 </html>
