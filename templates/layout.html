@@ -25,7 +25,7 @@
             return false;
             }
         </script>
-        <h1>Woofhack</h1>
+        <h1><img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="width:128px;height:128px;">Woofhack</h1>
         % if auth.username():
         <a href="javascript:logout();">log out</a>
         % endif
