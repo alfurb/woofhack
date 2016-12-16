@@ -249,4 +249,4 @@ def insert_tests_from_json(file, db, prob):
 
 if __name__ == "__main__":
     context = ('server.key.crt', 'server.key.key')
-    app.run(debug=True, port=5001, ssl_context=context)
+    app.run(debug=True, ssl_context=context)
