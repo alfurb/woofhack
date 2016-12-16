@@ -18,7 +18,7 @@ from mako.lookup import TemplateLookup
 from flask_httpauth import HTTPBasicAuth
 from flask_sqlalchemy import SQLAlchemy
 
-# create our little application :)
+
 app = Flask(__name__)
 app.config.from_object(__name__)
 auth = HTTPBasicAuth()
@@ -227,9 +227,7 @@ def new_problem():
     descr = description_to_html(descr)
 
     prob = Problem(title, descr, datetime.now())
-    problem_id = prob.id
     db.session.add(prob)
-    print(problem_id)
 
     insert_tests_from_json(examples, db, prob)
     db.session.commit()
@@ -248,8 +246,6 @@ def insert_tests_from_json(file, db, prob):
     f = json.loads(file.read().decode('utf-8'))
     for x in f:
         db.session.add(TestCase(x['name'], x['input'], x['output'], x['type'], prob))
-    #f = [TestCase(x['name'], x['input'], x['output'], x['type'], problem_id) for x in f]
-    #db.session.add(f)
 
 if __name__ == "__main__":
     context = ('server.key.crt', 'server.key.key')
