@@ -83,3 +83,5 @@ DerivedData
 submissions/*
 
 __pycache__/web_server.cpython-35.pyc
+
+*.db
