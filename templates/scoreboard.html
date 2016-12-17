@@ -1,0 +1,28 @@
+<%inherit file="layout.html"/>
+<style>
+  table, th, td {
+     border: 1px solid black;
+     padding: 5px;
+  }
+</style>
+<h1>Scoreboard</h1>
+<table>
+  <tr>
+    <td></td>
+    % for problem in problems:
+    <td>${problem.title}</td>
+    % endfor
+  </tr>
+  % for user_mapping in user_mappings:
+    ${makerow(*user_mapping)}
+  % endfor
+</table>
+
+<%def name="makerow(username, problem_mappings)">
+    <tr>
+        <td>${username}</td>\
+        % for color, classification in problem_mappings:
+          <td style="color:${color};">${classification}</td>\
+        % endfor
+    </tr>
+</%def>
