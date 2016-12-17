@@ -122,7 +122,7 @@ def serve_template(templatename, **kwargs):
     user = None
     if hasattr(g, "user"):
         user = g.user
-    return template.render(**kwargs, auth=auth, url_for=url_for, templatename=templatename, user=user)
+    return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, **kwargs)
 
 # A decorator for requiring admin privileges on routes
 def admin_required(f):
