@@ -314,8 +314,7 @@ def new_problem():
     # except Exception as e:
     #     print(e)
     #     abort(500)
-    return Template(filename="templates/new_problem.html").render()
-
+    return serve_template("new_problem.html")
 
 
 def description_to_html(descr):
