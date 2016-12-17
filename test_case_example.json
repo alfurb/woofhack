@@ -1,14 +1,26 @@
 [
   {
-    "name": "first",
-    "input": "3\n5",
-    "output": "8",
+    "name": "Small",
+    "input": "3\n3",
+    "output": "27",
     "type": "example"
   },
   {
-    "name": "second",
+    "name": "Small",
+    "input": "3\n3",
+    "output": "27",
+    "type": "test"
+  },
+  {
+    "name": "Medium",
     "input": "4\n5",
-    "output": "9",
+    "output": "1024",
+    "type": "test"
+  },
+  {
+    "name": "Big",
+    "input": "4\n15",
+    "output": "1073741824",
     "type": "test"
   }
 ]

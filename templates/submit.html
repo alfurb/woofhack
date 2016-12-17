@@ -2,15 +2,16 @@
 <body>
   <h1>Problem: ${prob.title}</h1>
   <h3>Description:</h3>
+  <div style="border: 1px solid #418C84;padding:5px;border-radius:5px;">
   ${prob.description}
+  </div>
   % for test in tests:
-  <h2>Examples:</h2>
-  <h3>${test.name}</h3>
+  <h3>Examples:</h3>
     <h4>Input</h4>
     <pre class="code">${test.inp}</pre>
     <h4>Output</h4>
     <pre class="code">${test.out}</pre>
-% endfor
+  % endfor
   <form action="" method="post" enctype="multipart/form-data">
       <p>Choose your programming language</p>
        <select name="language">

@@ -184,12 +184,13 @@ def register():
 
     try:
         password = bcrypt_sha256.hash(password)
-        user = User(username, password)
+        user = User(username, password, admin=True)
         db.session.add(user)
         db.session.commit()
         return redirect("/")
     except Exception as e:
         print(e)
+        db.session.rollback()
         abort(500)
 
 @app.route('/scoreboard', methods=["GET"])
@@ -297,7 +298,7 @@ def run(problem, submission_folder_path, file_path, language):
 @admin_required
 def new_problem():
     if request.method == 'GET':
-        return Template(filename="templates/new_problem.html").render()
+        return serve_template("new_problem.html")
     #try:
     title = request.form["title"]
     descr = request.files["description"]

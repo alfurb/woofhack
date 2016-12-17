@@ -1,19 +1,46 @@
-<!doctype html>
-<html>
-   <head>
-      <title>Upload a new problem file</title>
-   </head>
-   <body>
-      <h1>Upload a file to compile and run</h1>
-      <form action="" method="post" enctype="multipart/form-data">
-         <p>
-             Problem name: <input type="text" name="title"><br/>
-             Problem Description (plaintex, HTML or Markdown): <input type="file" name="description"><br/>
-             Test cases (json): <input type="file" name="testcases"><br/>
-             Note that all test cases must be a separate json object with "name", "input", "output" and "type" attributes <br/>
-             The type of a test case may be "example" or "test".<br/>
-             <input type="submit" value="Upload"><input type="reset">
-         </p>
-      </form>
-   </body>
-</html>
+<%inherit file="layout.html"/>
+
+<body>
+  <h1>Upload a file to compile and run</h1>
+  <form action="" method="post" enctype="multipart/form-data">
+    <dl>
+  <dt>Problem name:</dt>
+  <dd><input type="text" name="title"></dd>
+  <dt>Problem Description (Markdown):</dt>
+  <dd>
+    <input type="file" name="description">
+    <h5>Example:</h5>
+    <pre>
+${"##"} title
+
+${"###"} Ordered list
+
+1. *italic* 1
+2. A second **bold**
+3. Number 3
+</pre>
+   <p>See more markdown syntax <a href="http://markdown2.org/syntax/">here</a>. </p>
+  </dd>
+  <dt>Test cases (json):</dt>
+  <dd>
+    <input type="file" name="testcases">
+    <h5>Example:</h5>
+    <pre>
+[{
+  "name": "Sample test case",
+  "input": "3\n3",
+  "output": "27",
+  "type": "example"
+}, {
+  "name": "Small",
+  "input": "3\n4",
+  "output": "81",
+  "type": "test"
+}]</pre>
+   <p>Note that all test cases must be a separate json object with "name", "input", "output" and "type" attributes </p>
+   <p>The type of a test case may be "example" or "test". </p>
+  </dd>
+</dl>
+         <input type="submit" value="Upload"><input type="reset">
+  </form>
+</body>
