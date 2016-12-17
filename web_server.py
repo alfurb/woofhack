@@ -82,6 +82,27 @@ class TestCase(db.Model):
     def __repr__(self):
         return '<TestCase %r>' % self.name
 
+class Submission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    classification = db.Column(db.String(100))
+    submission_folder_path = db.Column(db.Text())
+
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'))
+    problem = db.relationship('Problem',
+        backref=db.backref('submissions', lazy='dynamic'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user = db.relationship('User',
+        backref=db.backref('submissions', lazy='dynamic'))
+
+    def __init__(self, classification, submission_folder_path, user, problem):
+        self.classification = classification
+        self.submission_folder_path = submission_folder_path
+        self.user = user
+        self.problem = problem
+
+    def __repr__(self):
+        return '<Submission %r>' % self.name
+
 # Specify classes
 class Classification():
     Accepted = "Accepted"
@@ -98,9 +119,10 @@ Result = namedtuple("Result", ["name", "classification", "input", "message", "ac
 lookup = TemplateLookup(directories=['./templates'])
 def serve_template(templatename, **kwargs):
     template = lookup.get_template(templatename)
-    print(auth.username())
-    print(request.url_root)
-    return template.render(**kwargs, auth=auth, request=request)
+    user = None
+    if hasattr(g, "user"):
+        user = g.user
+    return template.render(**kwargs, auth=auth, url_for=url_for, templatename=templatename, user=user)
 
 # A decorator for requiring admin privileges on routes
 def admin_required(f):
@@ -124,6 +146,7 @@ def verify_password(username, password):
             return False
     except ValueError:
         return False
+    g.user = user
     return True
 
 @app.route("/")
@@ -140,7 +163,6 @@ def statix_file(item):
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
-    print(session)
     if request.method == "GET":
         return serve_template("register.html")
 
@@ -167,6 +189,31 @@ def register():
         print(e)
         abort(500)
 
+@app.route('/scoreboard', methods=["GET"])
+def scoreboard():
+    # Create mapping from each user to the list of problems and the classification they have
+    problems = Problem.query.all()
+    users = User.query.all()
+    for i in Submission.query.all():
+        print(i.user.username, i.classification, i.problem.title)
+    print(problems)
+    print(users)
+    # [("sigurjon", [("sum", "Denied"), ("minus", "Accepted")])]
+    user_mappings = []
+    for user in users:
+        probs = []
+        for problem in problems:
+            if any(x.user == user and x.classification == Classification.Accepted for x in problem.submissions):
+                probs.append(("green", Classification.Accepted))
+            elif any(x.user == user and x.classification == Classification.Denied for x in problem.submissions):
+                probs.append(("red", Classification.Denied))
+            elif any(x.user == user and x.classification == Classification.Error for x in problem.submissions):
+                probs.append(("red", Classification.Error))
+            else:
+                probs.append((problem.title, "Not tried"))
+        user_mappings.append((user.username, probs))
+    return serve_template("scoreboard.html", problems=problems, user_mappings=user_mappings)
+
 @app.route("/submit/<title>", methods=['GET', 'POST'])
 @auth.login_required
 def submit(title):
@@ -185,11 +232,18 @@ def submit(title):
     file_path = os.path.join(path, 'submitted.cpp')
     f.save(file_path)
 
-    res = run(prob, path, file_path, "c++")
+    classified, res = run(prob, path, file_path, "c++")
+    # Get the current user from the global namespace, it is set in verify_password
+    user = g.user
+
+    # Add the submission to database
+    submission = Submission(classified, path, user, prob)
+    db.session.add(submission)
+    db.session.commit()
     return serve_template("results.html", results=res)
 
 def run(problem, submission_folder_path, file_path, language):
-    """returns a list of tuples (test, classification, message, accepted)"""
+    """returns a tuple of classification and a list of tuples (test, classification, message, accepted)"""
     if language == "c++":
         output_path = os.path.join(submission_folder_path, 'compiled')
         p = subprocess.Popen(["g++", "-o", output_path, file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -197,7 +251,8 @@ def run(problem, submission_folder_path, file_path, language):
         print("compile", output)
         if output[1]:
             error = output[1].decode()
-            return [Result("Compilation", Classification.Error, "", error, False)]
+            # If we unsuccessfully compile we send back a list with one element
+            return (Classification.Error, [Result("Compilation", Classification.Error, "", error, False)])
         output_path = "./" + output_path
     results = []
     for test in problem.tests:
@@ -212,13 +267,16 @@ def run(problem, submission_folder_path, file_path, language):
         elif stdout == test.out:
             res = Result(test.name, Classification.Accepted, "", "", True)
         else:
-            diff = ndiff(test.out.splitlines(), stdout.splitlines())
-            diff = map(lambda x: (x, "red" if x.startswith("- ") else "green" if x.startswith("+ ") else "grey"), diff)
-            diff = ["<span style='color:" + x[1] + "'>" + x[0] + "</span>" for x in diff]
-            diff = "\n".join(diff)
-            res = Result(test.name, Classification.Denied, test.inp, diff, False)
+            feedback = ndiff(test.out.splitlines(), stdout.splitlines())
+            feedback = map(lambda x: (x, "red" if x.startswith("- ") else "green" if x.startswith("+ ") else "grey"), feedback)
+            feedback = ["<span style='color:" + color + "'>" + text + "</span>" for text, color in feedback]
+            feedback = "\n".join(feedback)
+            res = Result(test.name, Classification.Denied, test.inp, feedback, False)
         results.append(res)
-    return results
+    classified = Classification.Accepted if all(test[1] == Classification.Accepted for test in results) else ""
+    classified = Classification.Denied if any(test[1] == Classification.Denied for test in results) else classified
+    classified = Classification.Error if any(test[1] == Classification.Error for test in results) else classified
+    return (classified, results)
 
 
 @app.route("/new_problem", methods=['GET', 'POST'])

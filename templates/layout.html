@@ -23,41 +23,40 @@
 <h3>
     <script>
         function logout(){
-        var old_url = window.location.host
-        var str = window.location.href.replace("https://", "https://" + new Date().getTime() + "@") + "new_problem";
+        var old_url = window.location.origin + "${url_for('new_problem')}";
+        console.log(old_url)
+        var str = old_url.replace("https://", "https://" + new Date().getTime() + "@");
         console.log(str);
         var xmlhttp;
         if (window.XMLHttpRequest) xmlhttp=new XMLHttpRequest();
         else xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
         xmlhttp.onreadystatechange=function()
         {
-          if (xmlhttp.readyState==4) location.reload();
+          if (xmlhttp.readyState==4) {
+            location.reload();
+            window.location.href = window.location.origin;
+          }
         }
         xmlhttp.open("GET",str,true);
         xmlhttp.setRequestHeader("Authorization","Basic YXNkc2E6")
         xmlhttp.send();
-        window.location.href = old_url;
         return false;
         }
     </script>
-    <h1><img src="/static/logo.png" alt="Logo" style="width:128px;height:148px;">Woofhack</h1>
+    <h1>
+      <img src="/static/logo.png" alt="Logo" style="width:128px;height:148px;">
+      Woofhack${' - you are ' + auth.username() + "?" if auth.username() else ""}
+    </h1>
     <hr>
     <div class="container-fluid">
         <ul class="nav nav-pills">
-
-            <li  class="active" ><a href="${request.url_root}index">Problems</a></li>
-
-            <li ><a href="${request.url_root}new_problem">New Problem</a></li>
-
+            <li ${'class="active"' if templatename == "index.html" else ''}><a href="${url_for('index')}">Problems</a></li>
+            <li ${'class="active"' if templatename == "register.html" else ''}><a href="${url_for('register')}">Register</a></li>
+            <li ${'class="active"' if templatename == "scoreboard.html" else ''}><a href="${url_for('scoreboard')}">Scoreboard</a></li>
+            <li ${'class="active"' if templatename == "new_problem.html" else ''}><a href="${url_for('new_problem')}">New Problem</a></li>
             % if auth.username():
-
-            <li ><a href="javascript:logout();">log out</a></li >
-
-            %else:
-
-            <li ><a href="${request.url_root}register">Register</a></li>
+              <li ><a href="javascript:logout()">Try to log out</a></li>
             % endif
-
         </ul>
         ${self.body()}
     </div>
