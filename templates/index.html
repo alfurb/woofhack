@@ -13,8 +13,8 @@
 
 <%def name="makerow(problem)">
     <tr>
-        <td><h3>${problem.title}</h3></td>\
-        <td>${problem.description}</td>\
-        <td><a href="/submit/${problem.title}">view</a></td>\
+        <td><h4>${problem.title}</h4></td>\
+        <td><i class="align-middle">${problem.summary}</i></td>\
+        <td><a href="${url_for('submit', title=problem.title)}">view problem</a></td>\
     </tr>
 </%def>
