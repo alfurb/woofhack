@@ -13,6 +13,7 @@ from difflib import ndiff
 import markdown2
 from passlib.hash import bcrypt_sha256
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from werkzeug.utils import secure_filename
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from flask_httpauth import HTTPBasicAuth
@@ -28,9 +29,11 @@ app.config.update(dict(
     #DATABASE=os.path.join(app.root_path, 'woofhack.db'),
     SECRET_KEY=b'\x12\xa7\xfc\x0b\xcdm\xdb\xde\x7f\xa76a\x0b\x1e\xbc\x15\xa4\xbc\xec\x01\xd4i\x8c\x90',
 ))
-app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
+app.config.from_envvar('FLASKR_SETTINGS', silent=True)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///woofhack.db'
+
 db = SQLAlchemy(app)
 
 class User(db.Model):
@@ -210,7 +213,7 @@ def scoreboard():
             elif any(x.user == user and x.classification == Classification.Error for x in problem.submissions):
                 probs.append(("red", Classification.Error))
             else:
-                probs.append((problem.title, "Not tried"))
+                probs.append(("grey", "Not tried"))
         user_mappings.append((user.username, probs))
     return serve_template("scoreboard.html", problems=problems, user_mappings=user_mappings)
 
@@ -224,15 +227,20 @@ def submit(title):
         tests = TestCase.query.filter_by(problem_id=prob.id, test_type="example")
         return serve_template("submit.html", prob=prob, tests=tests)
 
-    f = request.files['file']
+    language = request.form.get("language")
+
+    f = request.files.get('file')
+    filename = secure_filename(f.filename)
+    if not filename:
+        abort(400)
 
     date_str = datetime.now().strftime("%H:%M:%S-%d-%m-%Y")
     path = os.path.join('submissions', title, date_str)
     os.makedirs(path, exist_ok=True)
-    file_path = os.path.join(path, 'submitted.cpp')
+    file_path = os.path.join(path, filename)
     f.save(file_path)
 
-    classified, res = run(prob, path, file_path, "c++")
+    classified, res = run(prob, path, file_path, language)
     # Get the current user from the global namespace, it is set in verify_password
     user = g.user
 
@@ -244,6 +252,7 @@ def submit(title):
 
 def run(problem, submission_folder_path, file_path, language):
     """returns a tuple of classification and a list of tuples (test, classification, message, accepted)"""
+    print(language)
     if language == "c++":
         output_path = os.path.join(submission_folder_path, 'compiled')
         p = subprocess.Popen(["g++", "-o", output_path, file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -253,14 +262,18 @@ def run(problem, submission_folder_path, file_path, language):
             error = output[1].decode()
             # If we unsuccessfully compile we send back a list with one element
             return (Classification.Error, [Result("Compilation", Classification.Error, "", error, False)])
-        output_path = "./" + output_path
+        run_commands = ["./" + output_path]
+    elif language == "python3":
+        run_commands = ["python3", file_path]
+    elif language == "python2":
+        run_commands = ["python", file_path]
     results = []
     for test in problem.tests:
-        p = subprocess.Popen([output_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        p = subprocess.Popen(run_commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate(input=test.inp.encode())
         print("run", output)
         # Convert byte string to utf8 string
-        stdout = output[0].decode()
+        stdout = output[0].decode().strip()
         if p.returncode != 0:
             error = output[1].decode()
             res = Result(test.name, Classification.Error, "", error, False)

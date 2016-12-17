@@ -1,16 +1,10 @@
 <%inherit file="layout.html"/>
-<style>
-  table, th, td {
-     border: 1px solid black;
-     padding: 5px;
-  }
-</style>
 <h1>Scoreboard</h1>
-<table>
+<table class="table table-striped">
   <tr>
-    <td></td>
+    <th>user</th>
     % for problem in problems:
-    <td>${problem.title}</td>
+    <th>${problem.title}</th>
     % endfor
   </tr>
   % for user_mapping in user_mappings:

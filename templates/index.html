@@ -1,11 +1,11 @@
 <%inherit file="layout.html"/>
-<style>
-  table, th, td {
-     border: 1px solid black;
-  }
-</style>
 <h1>Here is a list of all the problems we have</h1>
-<table>
+<table class="table table-striped">
+  <tr>
+    <th>Problem</th>
+    <th>Description</th>
+    <th></th>
+  </tr>
     % for prob in problems:
         ${makerow(prob)}
     % endfor
