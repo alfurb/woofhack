@@ -106,6 +106,16 @@ class Submission(db.Model):
     def __repr__(self):
         return '<Submission %r>' % self.name
 
+class AdminCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code_hash = db.Column(db.String(64))
+
+    def __init__(self, code_hash):
+        self.code_hash = code_hash
+
+    def __repr__(self):
+        return '<AdminCode %r>' % self.code_hash
+
 class Alert:
     def __init__(self, alert_header, alert_type, alert_message):
         self.alert_header = alert_header

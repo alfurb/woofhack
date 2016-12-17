@@ -25,3 +25,7 @@ db.session.add(admin)
 db.session.add(siggi)
 db.session.add(alfur)
 db.session.commit()
+
+admin_code = AdminCode(bcrypt_sha256.hash("Woof Woof"))
+db.session.add(admin_code)
+db.session.commit()
