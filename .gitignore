@@ -87,3 +87,5 @@ __pycache__/web_server.cpython-35.pyc
 *.db
 
 __pycache__/web_server.cpython-36.pyc
+
+static/logo copy.png
