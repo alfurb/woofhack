@@ -20,7 +20,7 @@
     <link rel=stylesheet type=text/css href="/static/woofhack.css">
     <title>Woofhack</title>
 </head>
-<h3>
+<body>
     <script>
         function logout(){
         var old_url = window.location.origin + "${url_for('new_problem')}";
@@ -48,6 +48,9 @@
         Woofhack${' - you are ' + auth.username() + "?" if auth.username() else ""}
     </h1>
     <hr>
+    % if alert:
+    <div class="alert alert-${alert.alert_type}"><strong>${alert.alert_header}</strong> ${alert.alert_message}</div>
+    % endif
     <div class="container-fluid">
         <ul class="nav nav-pills">
             <li ${'class="active"' if templatename == "index.html" else ''}><a href="${url_for('index')}">Problems</a></li>

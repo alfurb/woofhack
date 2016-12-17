@@ -106,6 +106,13 @@ class Submission(db.Model):
     def __repr__(self):
         return '<Submission %r>' % self.name
 
+class Alert:
+    def __init__(self, alert_header, alert_type, alert_message):
+        self.alert_header = alert_header
+        self.alert_type = alert_type
+        self.alert_message = alert_message
+
+
 # Specify classes
 class Classification():
     Accepted = "Accepted"
@@ -314,7 +321,7 @@ def new_problem():
     # except Exception as e:
     #     print(e)
     #     abort(500)
-    return serve_template("new_problem.html")
+    return serve_template("new_problem.html", alert = Alert('Success', 'success', 'New problem saved'))
 
 
 def description_to_html(descr):
