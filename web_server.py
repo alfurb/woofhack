@@ -99,7 +99,8 @@ lookup = TemplateLookup(directories=['./templates'])
 def serve_template(templatename, **kwargs):
     template = lookup.get_template(templatename)
     print(auth.username())
-    return template.render(**kwargs, auth=auth)
+    print(request.url_root)
+    return template.render(**kwargs, auth=auth, request=request)
 
 # A decorator for requiring admin privileges on routes
 def admin_required(f):
@@ -173,7 +174,8 @@ def submit(title):
     if not prob:
         abort(404)
     if request.method == 'GET':
-        return serve_template("submit.html", name=prob.title)
+        tests = TestCase.query.filter_by(problem_id=prob.id, test_type="example")
+        return serve_template("submit.html", prob=prob, tests=tests)
 
     f = request.files['file']
 
