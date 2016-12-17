@@ -6,7 +6,9 @@
     <dl>
   <dt>Problem name:</dt>
   <dd><input type="text" name="title"></dd>
-  <dt>Problem Description (Markdown):</dt>
+  <dt>Summary:</dt>
+  <dd><input type="text" name="summary"></dd>
+  <dt>Detailed problem description (in Markdown):</dt>
   <dd>
     <input type="file" name="description">
     <h5>Example:</h5>
@@ -37,8 +39,8 @@ ${"###"} Ordered list
   "output": "81",
   "type": "test"
 }]</pre>
-   <p>Note that all test cases must be a separate json object with "name", "input", "output" and "type" attributes </p>
-   <p>The type of a test case may be "example" or "test". </p>
+   <p>Note that all test cases must be a separate json object with "name", "input", "output" and "type" attributes.</p>
+   <p>The type of a test case may be either "example" or "test".</p>
   </dd>
 </dl>
          <input type="submit" value="Upload"><input type="reset">

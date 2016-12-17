@@ -53,11 +53,13 @@ class User(db.Model):
 class Problem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(80), unique=True)
-    description = db.Column(db.String(1024))
+    summary = db.Column(db.String(80), unique=True)
+    description = db.Column(db.Text())
     created = db.Column(db.Date())
 
-    def __init__(self, title, description, created):
+    def __init__(self, title, description, summary, created):
         self.title = title
+        self.summary = summary
         self.description = description
         self.created = created
 
@@ -190,14 +192,14 @@ def register():
     password = request.form.get("password")
     password_repeated = request.form.get("password_repeated")
     if not username or not password or not password_repeated:
-        return serve_template("register.html", error="All fields must be filled out")
+        return serve_template("register.html", alert = Alert('Error', 'danger', 'All fields must be filled out.'))
 
     if password != password_repeated:
-        return serve_template("register.html", error="Passwords do not match")
+        return serve_template("register.html", alert = Alert('Error', 'danger', 'Passwords must match.'))
 
     # User already exists
     if User.query.filter_by(username = username).first():
-        return serve_template("register.html", error="User is already registered")
+        return serve_template("register.html", alert = Alert('Error', 'danger', 'User already exists.'))
 
     try:
         password = bcrypt_sha256.hash(password)
@@ -318,6 +320,7 @@ def new_problem():
         return serve_template("new_problem.html")
     #try:
     title = request.form["title"]
+    summary = request.form["summary"]
     descr = request.files["description"]
     examples = request.files["testcases"]
 
