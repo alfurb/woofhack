@@ -1,0 +1,38 @@
+Dependencies:
+  See requirements.txt.
+
+Running:
+  python3 web_server.py
+
+Pages:
+  Index: To see available problems.
+
+  Registration: Register a new user to the system. If you have the admin code the user can be registered as an admin.
+
+  Scoreboard: Here all the results are listed, they can be one of [Accepted, Denied, Error, Not tried].
+
+  New problem: If you are logged in as an admin you can submit a new problem with a description in markdown and test
+  cases in json.
+
+  Problem submission page: You can see the full description for the problem, example input and output, choose your
+  programming language and then submit your solution to the problem.
+
+  Submission result page: You get feedback for your solution, if there was an error it is returned, if your solution did
+  not produce the correct output you see the difference between expected output and your output. If your submission was
+  accepted all test cases will be accepted. Every submission is recorded and will be displayed in the scoreboard under
+  your username.
+
+Features:
+  Security: The site runs on an ssl connection so all connections are secured. We store the passwords hashed with bcrypt
+  in a sqlite3 database.
+
+  Programming languages: We support c++, python 2.6 and python 3.5
+
+What we use:
+  Subprocess: Run other programs and write to their standard input and read the standard output and error.
+  Flask: Serve html web pages over the https protocol.
+  Mako: Superior templating with inline python code.
+  Flask_HTTPAuth: Add token verification to pages that need authorization.
+  Passlib: Gives us access to bcrypt so we can hash the passwords and admin codes.
+  Markdown2: Render html with simple text commands. We use this for problem descriptions.
+  Flask_SQLAlchemy: Creates SQL queries from much simple python code, also allows us to create model classes in python.
