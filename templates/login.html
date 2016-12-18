@@ -1,11 +1,5 @@
 <%inherit file="layout.html"/>
 <body>
-    % if logged_in:
-    <h1>Log Out</h1>
-    <form method="post" enctype="multipart/form-data">
-        <input type="submit" name="logout" value="Logout" />
-    </form>
-    %else:
   <h1>Log In</h1>
   <form method="post" enctype="multipart/form-data">
     User name:<br>
@@ -14,5 +8,4 @@
     <input type="password" name="password"><br>
     <input type="submit" name="login" value="login" />
   </form>
-    %endif
 </body>
