@@ -218,6 +218,11 @@ def index():
     p = Problem.query.all()
     return serve_template("index.html", problems=p)
 
+
+@app.errorhandler(404)
+def lost(e=None):
+    return serve_template("lost.html")
+
 @app.errorhandler(401)
 @app.route("/login", methods=["GET", "POST"])
 def login(e=None):
