@@ -191,6 +191,9 @@ def register():
     username = request.form.get("username")
     password = request.form.get("password")
     password_repeated = request.form.get("password_repeated")
+    admin_code = request.form.get("code")
+    admin_value = False
+
     if not username or not password or not password_repeated:
         return serve_template("register.html", alert = Alert('Error', 'danger', 'All fields must be filled out.'))
 
@@ -201,12 +204,22 @@ def register():
     if User.query.filter_by(username = username).first():
         return serve_template("register.html", alert = Alert('Error', 'danger', 'User already exists.'))
 
+    if request.form.get("admin"):
+        code_hashes = AdminCode.query.first()
+        if bcrypt_sha256.verify(admin_code, code_hashes.code_hash):
+            admin_value = True
+        else:
+            return serve_template("register.html", alert=Alert("Error", "error", "Wrong or no Admin Code"))
+
     try:
         password = bcrypt_sha256.hash(password)
-        user = User(username, password, admin=True)
+        user = User(username, password, admin=admin_value)
         db.session.add(user)
         db.session.commit()
-        return redirect("/")
+        if admin_value:
+            return serve_template("register.html", alert=Alert("Success", "success", "New Admin registered"))
+        else:
+            return serve_template("register.html", alert=Alert("Success", "success", "New User registered"))
     except Exception as e:
         print(e)
         db.session.rollback()
