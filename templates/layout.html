@@ -54,16 +54,14 @@
     <div class="container-fluid">
         <ul class="nav nav-pills">
             <li ${'class="active"' if templatename == "index.html" else ''}><a href="${url_for('index')}">Problems</a></li>
-            <li ${'class="active"' if templatename == "register.html" else ''}><a href="${url_for('register')}">Register</a></li>
             <li ${'class="active"' if templatename == "scoreboard.html" else ''}><a href="${url_for('scoreboard')}">Scoreboard</a></li>
             <li ${'class="active"' if templatename == "new_problem.html" else ''}><a href="${url_for('new_problem')}">New Problem</a></li>
-            <li ${'class="active"' if templatename == "login.html" else ''}><a href="${url_for('login')}">
-                %if logged_in:
-                    Log Out
-                %else:
-                    Log In
-                %endif
-            </a></li>
+            % if logged_in:
+              <li><a href="${url_for('logout')}">Log Out</a></li>
+            % else:
+              <li ${'class="active"' if templatename == "register.html" else ''}><a href="${url_for('register')}">Register</a></li>
+              <li ${'class="active"' if templatename == "login.html" else ''}><a href="${url_for('login')}">Log In</a></li>
+            % endif
         </ul>
         ${self.body()}
     </div>

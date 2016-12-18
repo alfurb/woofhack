@@ -218,17 +218,16 @@ def index():
 def login():
     if request.method == "GET":
         return serve_template("login.html")
-    if "logout" in request.form:
-        return logout()
 
     username = request.form.get("username")
     password = request.form.get("password")
     if verify_password(username, password):
         session["session_token"] = g.user.generate_auth_token()
-        return serve_template('login.html', alert=Alert('Success', 'success', str(username) + ' logged in'))
+        return redirect("index")
     else:
         return serve_template('login.html', alert=Alert('Error', 'danger', 'Could not log in ' + str(username)))
 
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     if not "session_token" in session or session["session_token"] is None:
         return serve_template('login.html', alert=Alert('Woops', 'warning', 'There was no one logged in'))
