@@ -1,30 +1,44 @@
+Introduction:
+  Woofhack is a solution verification tool similar to Mooshak. Woofhack is a Flask app hosted on pythonanywhere
+  (http://alfur.pythonanywhere.com/). The basic functions of Woofhack are problem viewing, solution submission and
+  problem creation handling, as well as a scoreboard that keeps track of who has finished which problems. A user must be
+  registered and signed in to view a problem and try to submit a solution. Furthermore, only admins may create new
+  problems. We hope you enjoy your problem solving experience.
+
 Dependencies:
   See requirements.txt.
 
 Running:
-  python3 web_server.py
+  First run "python3 init_db.py" and then "python3 web_server.py" in your favourite terminal and watch the fun begin or
+  visit http://alfur.pythonanywhere.com/ to save yourself the hassle of hosting the app yourself
 
 Pages:
-  Index: To see available problems.
+  Index or Front Page: The front page of Woofhack. Here you can see available problems.
 
-  Registration: Register a new user to the system. If you have the admin code the user can be registered as an admin.
+  Register: Register a new user to the system. If you have the admin code the user can be registered as an admin.
+             Currently the only valid admin code is "Woof Woof". Feel free to try it out.
 
   Scoreboard: Here all the results are listed, they can be one of [Accepted, Denied, Error, Not tried].
 
-  New problem: If you are logged in as an admin you can submit a new problem with a description in markdown and test
-  cases in json.
+  New Problem: If you are logged in as an admin you can submit a new problem with a description in markdown and test
+                cases in json.
 
-  Problem submission page: You can see the full description for the problem, example input and output, choose your
-  programming language and then submit your solution to the problem.
+  Submit a solution: You can see the full description for the problem, example input and output, choose your programming
+                     language and then submit your solution to the problem. We support C++, Python 2.6 and Python 3.5.
 
   Submission result page: You get feedback for your solution, if there was an error it is returned, if your solution did
-  not produce the correct output you see the difference between expected output and your output. If your submission was
-  accepted all test cases will be accepted. Every submission is recorded and will be displayed in the scoreboard under
-  your username.
+                          not produce the correct output you see the difference between expected output and your output.
+                          If your submission was accepted all test cases will be accepted. Every submission is recorded
+                          and will be displayed in the scoreboard under your username.
 
 Features:
   Security: The site runs on an ssl connection so all connections are secured. We store the passwords hashed with bcrypt
   in a sqlite3 database.
+
+  Sessions: After a successful login, each session gets a token encrypted with itsdangerous URLSafeTimedSerializer. When
+  visiting restricted areas the app looks for this token and verifies its integrity. If the token is non-existent,
+  expired or plain wrong, you are denied access. When you log out, your session token is deleted, this also happens on
+  teardown.
 
   Programming languages: We support c++, python 2.6 and python 3.5
 
