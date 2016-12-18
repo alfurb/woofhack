@@ -145,6 +145,8 @@ Result = namedtuple("Result", ["name", "classification", "input", "message", "ac
 
 # Wrapper to add a header to all Templates
 lookup = TemplateLookup(directories=['./templates'])
+
+# Alerts to display next time a page is served
 alerts = []
 def add_alert(alert):
     alerts.append(alert)
@@ -158,8 +160,7 @@ def serve_template(templatename, **kwargs):
     send_alerts = list(alerts)
     global alerts
     alerts = list([])
-    return template.render(auth=auth,
-                           url_for=url_for,
+    return template.render(url_for=url_for,
                            templatename=templatename,
                            user=user,
                            alerts=send_alerts,
@@ -311,16 +312,23 @@ def scoreboard():
     user_mappings = []
     for user in users:
         probs = []
+        solved = 0
         for problem in problems:
             if any(x.user == user and x.classification == Classification.Accepted for x in problem.submissions):
                 probs.append(("green", Classification.Accepted))
+                solved += 1
             elif any(x.user == user and x.classification == Classification.Denied for x in problem.submissions):
-                probs.append(("red", Classification.Denied))
+                probs.append(("goldenrod", Classification.Denied))
             elif any(x.user == user and x.classification == Classification.Error for x in problem.submissions):
                 probs.append(("red", Classification.Error))
             else:
                 probs.append(("grey", "Not tried"))
-        user_mappings.append((user.username, probs))
+        # Only add people to the scoreboard that have tried a problem
+        if not all([text == "Not tried" for color, text in probs]):
+            user_mappings.append((user.username, probs, solved))
+    # Sort by number of solved problems, bigger first
+    user_mappings.sort(key=lambda x: -x[2])
+    user_mappings = [(color, text) for color, text, solved in user_mappings]
     return serve_template("scoreboard.html", problems=problems, user_mappings=user_mappings)
 
 @app.route("/submit/<title>", methods=['GET', 'POST'])
@@ -358,6 +366,7 @@ def submit(title):
 
 def run(problem, submission_folder_path, file_path, language):
     """returns a tuple of classification and a list of tuples (test, classification, message, accepted)"""
+    # Compile and set the commands to run a file
     if language == "c++":
         output_path = os.path.join(submission_folder_path, 'compiled')
         p = subprocess.Popen(["g++", "-o", output_path, file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -371,6 +380,8 @@ def run(problem, submission_folder_path, file_path, language):
         run_commands = ["python3", file_path]
     elif language == "python2":
         run_commands = ["python", file_path]
+
+    # Run tests
     results = []
     for test in problem.tests.filter_by(test_type="test"):
         p = subprocess.Popen(run_commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
