@@ -8,7 +8,7 @@ It me!
 3. Number 3
 4. Ⅳ
 
-*Note: the fourth *item* uses the Unicode character for [Roman numeral four][2].*
+*Note: the fourth *item* uses the Unicode character for.*
 
 ### Unordered list
 

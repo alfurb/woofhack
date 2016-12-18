@@ -389,10 +389,11 @@ def run(problem, submission_folder_path, file_path, language):
 def new_problem():
     if request.method == 'GET':
         return serve_template("new_problem.html")
-    title = request.form["title"]
-    summary = request.form["summary"]
-    descr = request.files["description"]
-    examples = request.files["testcases"]
+
+    title = request.form.get("title")
+    summary = request.form.get("summary")
+    descr = request.files.get("description")
+    examples = request.files.get("testcases")
 
     descr = description_to_html(descr)
 
