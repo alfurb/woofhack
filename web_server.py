@@ -372,7 +372,7 @@ def run(problem, submission_folder_path, file_path, language):
     elif language == "python2":
         run_commands = ["python", file_path]
     results = []
-    for test in problem.tests:
+    for test in problem.tests.filter_by(test_type="test"):
         p = subprocess.Popen(run_commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate(input=test.inp.encode())
         # Convert byte string to utf8 string

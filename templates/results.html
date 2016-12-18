@@ -7,15 +7,20 @@
 </style>
 
 <h1>Result</h1>
+<% wrong_answer_shown = False %>
 % for result in results:
   <h2>${result.name} - ${result.classification}</h2>
   % if not result.accepted:
-    % if result.input:
+    % if result.classification == "Denied" and not wrong_answer_shown:
       <h4>Input</h4>
       <pre class="code">${result.input}</pre>
-    % endif
-    <h4>Output</h4>
-    <pre class="code">${result.message}</pre>
+      <h4>Output</h4>
+      <pre class="code">${result.message}</pre>
+      <%wrong_answer_shown = True %>
+    % elif result.classification == "Error":
+      <h4>Output</h4>
+      <pre class="code">${result.message}</pre>
+    %endif
   % endif
 % endfor
 
