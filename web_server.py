@@ -383,8 +383,8 @@ def run(problem, submission_folder_path, file_path, language):
         elif stdout == test.out:
             res = Result(test.name, Classification.Accepted, "", "", True)
         else:
-            feedback = ndiff(test.out.splitlines(), stdout.splitlines())
-            feedback = map(lambda x: (x, "red" if x.startswith("+ ") else "green" if x.startswith("- ") else "grey"), feedback)
+            feedback = ndiff(stdout.splitlines(), test.out.splitlines())
+            feedback = map(lambda x: (x, "red" if x.startswith("- ") else "green" if x.startswith("+ ") else "grey"), feedback)
             feedback = ["<span style='color:" + color + "'>" + text + "</span>" for text, color in feedback]
             feedback = "\n".join(feedback)
             res = Result(test.name, Classification.Denied, test.inp, feedback, False)
