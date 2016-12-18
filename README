@@ -50,3 +50,6 @@ What we use:
   Passlib: Gives us access to bcrypt so we can hash the passwords and admin codes.
   Markdown2: Render html with simple text commands. We use this for problem descriptions.
   Flask_SQLAlchemy: Creates SQL queries from much simple python code, also allows us to create model classes in python.
+
+One more thing:
+  Try not to stray of the turquoise brick road, we wouldn't want the Piano man to 404 you.
