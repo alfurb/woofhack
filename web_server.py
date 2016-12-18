@@ -12,13 +12,13 @@ from difflib import ndiff
 
 import markdown2
 from passlib.hash import bcrypt_sha256
-from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash, make_response
 from werkzeug.utils import secure_filename
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from flask_httpauth import HTTPTokenAuth
 from flask_sqlalchemy import SQLAlchemy
-from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
+from itsdangerous import (TimedSerializer as Serializer, BadSignature, SignatureExpired)
 
 
 app = Flask(__name__, static_url_path='/static')
@@ -51,6 +51,14 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % self.username
 
+    def generate_auth_token(self):
+        s = Serializer(app.config['SECRET_KEY'])
+        print(s)
+        t = s.dumps(self.username)
+        db.session.add(AuthToken(self.username, t))
+        db.session.commit()
+        return t
+
 
 class AuthToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -58,9 +66,12 @@ class AuthToken(db.Model):
     token = db.Column(db.String(64), unique=True)
     user = db.relationship('User', backref=db.backref('tokens', lazy='dynamic'))
 
-    def __init__(self, username):
+    def __init__(self, username, token):
         self.username = username
-        self.token = Serializer(app.config['SECRET_KEY'], expires_in = 600)
+        self.token = token
+
+    def __repr__(self):
+        return '<Toke %r>' % self.token
 
 
 class Problem(db.Model):
@@ -174,16 +185,13 @@ def admin_required(f):
     return wrapped
 
 # Used to verify passwords submitted with those stored in our database
-@auth.verify_password
-def verify_password(username_or_token, password):
-    user = User.verify_auth_token(username_or_token)
-    if not user:
-        user = User.query.filter_by(username = username_or_token).first()
-        try:
-            if not user or not bcrypt_sha256.verify(password, user.pw_hash):
-                return False
-        except ValueError:
+def verify_password(username, password):
+    user = User.query.filter_by(username = username).first()
+    try:
+        if not user or not bcrypt_sha256.verify(password, user.pw_hash):
             return False
+    except ValueError:
+        return False
     g.user = user
     return True
 
@@ -202,6 +210,21 @@ def verify_token(token):
 def index():
     p = Problem.query.all()
     return serve_template("index.html", problems=p)
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return serve_template("login.html")
+
+    username = request.form.get("username")
+    password = request.form.get("password")
+    if verify_password(username, password):
+        resp = make_response(serve_template('index.html',problems=Problem.query.all(), alert=Alert("Success", "success", username + " logged in")))
+        resp.set_cookie(key='auth_token', value=g.user.generate_auth_token())
+        return resp
+    else:
+        return serve_template('login.html', alert=Alert('Error', 'danger', 'Could not log in ' + username))
 
 
 @app.route("/static/<item>")
