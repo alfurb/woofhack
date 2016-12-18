@@ -197,7 +197,6 @@ def verify_password(username, password):
 
 def verify_token(token):
     s = Serializer(app.config['SECRET_KEY'])
-    print(token)
     try:
         data = s.loads(token)
     except SignatureExpired:
@@ -281,7 +280,6 @@ def register():
         else:
             return serve_template("register.html", alert=Alert("Success", "success", "New User registered"))
     except Exception as e:
-        print(e)
         db.session.rollback()
         abort(500)
 
@@ -297,10 +295,6 @@ def scoreboard():
     # Create mapping from each user to the list of problems and the classification they have
     problems = Problem.query.all()
     users = User.query.all()
-    for i in Submission.query.all():
-        print(i.user.username, i.classification, i.problem.title)
-    print(problems)
-    print(users)
     # [("sigurjon", [("sum", "Denied"), ("minus", "Accepted")])]
     user_mappings = []
     for user in users:
@@ -352,12 +346,10 @@ def submit(title):
 
 def run(problem, submission_folder_path, file_path, language):
     """returns a tuple of classification and a list of tuples (test, classification, message, accepted)"""
-    print(language)
     if language == "c++":
         output_path = os.path.join(submission_folder_path, 'compiled')
         p = subprocess.Popen(["g++", "-o", output_path, file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate()
-        print("compile", output)
         if output[1]:
             error = output[1].decode()
             # If we unsuccessfully compile we send back a list with one element
@@ -371,7 +363,6 @@ def run(problem, submission_folder_path, file_path, language):
     for test in problem.tests:
         p = subprocess.Popen(run_commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate(input=test.inp.encode())
-        print("run", output)
         # Convert byte string to utf8 string
         stdout = output[0].decode().strip()
         if p.returncode != 0:
@@ -398,7 +389,6 @@ def run(problem, submission_folder_path, file_path, language):
 def new_problem():
     if request.method == 'GET':
         return serve_template("new_problem.html")
-    #try:
     title = request.form["title"]
     summary = request.form["summary"]
     descr = request.files["description"]
@@ -406,14 +396,11 @@ def new_problem():
 
     descr = description_to_html(descr)
 
-    prob = Problem(title, descr, datetime.now())
+    prob = Problem(title, descr, summary, datetime.now())
     db.session.add(prob)
 
     insert_tests_from_json(examples, db, prob)
     db.session.commit()
-    # except Exception as e:
-    #     print(e)
-    #     abort(500)
     return serve_template("new_problem.html", alert = Alert('Success', 'success', 'New problem saved'))
 
 
