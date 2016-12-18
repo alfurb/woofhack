@@ -57,9 +57,13 @@
             <li ${'class="active"' if templatename == "register.html" else ''}><a href="${url_for('register')}">Register</a></li>
             <li ${'class="active"' if templatename == "scoreboard.html" else ''}><a href="${url_for('scoreboard')}">Scoreboard</a></li>
             <li ${'class="active"' if templatename == "new_problem.html" else ''}><a href="${url_for('new_problem')}">New Problem</a></li>
-            % if auth.username():
-              <li ><a href="javascript:logout()">Try to log out</a></li>
-            % endif
+            <li ${'class="active"' if templatename == "login.html" else ''}><a href="${url_for('login')}">
+                %if logged_in:
+                    Log Out
+                %else:
+                    Log In
+                %endif
+            </a></li>
         </ul>
         ${self.body()}
     </div>

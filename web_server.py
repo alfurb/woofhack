@@ -54,23 +54,7 @@ class User(db.Model):
     def generate_auth_token(self):
         s = Serializer(app.config['SECRET_KEY'])
         t = s.dumps({'username': self.username})
-        db.session.add(AuthToken(self.username, t))
-        db.session.commit()
         return t
-
-
-class AuthToken(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), db.ForeignKey('user.username'))
-    token = db.Column(db.String(64), unique=True)
-    user = db.relationship('User', backref=db.backref('tokens', lazy='dynamic'))
-
-    def __init__(self, username, token):
-        self.username = username
-        self.token = token
-
-    def __repr__(self):
-        return '<Toke %r>' % self.token
 
 
 class Problem(db.Model):
@@ -166,7 +150,11 @@ def serve_template(templatename, **kwargs):
     user = None
     if hasattr(g, "user"):
         user = g.user
-    return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, **kwargs)
+    if "session_token" in session:
+        logged_in = True
+    else:
+        logged_in = False
+    return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, logged_in=logged_in, **kwargs)
 
 def login_required(f):
     @functools.wraps(f)
@@ -174,7 +162,6 @@ def login_required(f):
         if not "session_token" in session:
             abort(403)
         elif verify_token(session["session_token"]):
-            print("hey")
             return f(*args, **kwargs)
         else:
             abort(403)
@@ -208,7 +195,6 @@ def verify_password(username, password):
     return True
 
 
-@auth.verify_token
 def verify_token(token):
     s = Serializer(app.config['SECRET_KEY'])
     print(token)
@@ -233,14 +219,24 @@ def index():
 def login():
     if request.method == "GET":
         return serve_template("login.html")
+    if "logout" in request.form:
+        return logout()
 
     username = request.form.get("username")
     password = request.form.get("password")
     if verify_password(username, password):
         session["session_token"] = g.user.generate_auth_token()
-        return serve_template('login.html', alert=Alert('Success', 'success', username + 'logged in'))
+        return serve_template('login.html', alert=Alert('Success', 'success', str(username) + ' logged in'))
     else:
-        return serve_template('login.html', alert=Alert('Error', 'danger', 'Could not log in ' + username))
+        return serve_template('login.html', alert=Alert('Error', 'danger', 'Could not log in ' + str(username)))
+
+def logout():
+    if not "session_token" in session or session["session_token"] is None:
+        return serve_template('login.html', alert=Alert('Woops', 'warning', 'There was no one logged in'))
+    else:
+        user = verify_token(session["session_token"])
+        del session["session_token"]
+        return serve_template('login.html', alert=Alert('Success', 'success', str(user.username) + ' logged out'))
 
 
 @app.route("/static/<item>")

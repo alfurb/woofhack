@@ -1,11 +1,18 @@
 <%inherit file="layout.html"/>
 <body>
-  <h1>Register to submit solutions</h1>
+    % if logged_in:
+    <h1>Log Out</h1>
+    <form method="post" enctype="multipart/form-data">
+        <input type="submit" name="logout" value="Logout" />
+    </form>
+    %else:
+  <h1>Log In</h1>
   <form method="post" enctype="multipart/form-data">
     User name:<br>
     <input type="text" name="username"><br>
     Password:<br>
     <input type="password" name="password"><br>
-    <input type="submit" />
+    <input type="submit" name="login" value="login" />
   </form>
+    %endif
 </body>
