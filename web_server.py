@@ -16,13 +16,14 @@ from flask import Flask, request, session, g, redirect, url_for, abort, render_t
 from werkzeug.utils import secure_filename
 from mako.template import Template
 from mako.lookup import TemplateLookup
-from flask_httpauth import HTTPBasicAuth
+from flask_httpauth import HTTPTokenAuth
 from flask_sqlalchemy import SQLAlchemy
+from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
 
 
 app = Flask(__name__, static_url_path='/static')
 app.config.from_object(__name__)
-auth = HTTPBasicAuth()
+auth = HTTPTokenAuth(scheme='Token')
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
@@ -50,6 +51,18 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % self.username
 
+
+class AuthToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey('user.username'))
+    token = db.Column(db.String(64), unique=True)
+    user = db.relationship('User', backref=db.backref('tokens', lazy='dynamic'))
+
+    def __init__(self, username):
+        self.username = username
+        self.token = Serializer(app.config['SECRET_KEY'], expires_in = 600)
+
+
 class Problem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(80), unique=True)
@@ -74,8 +87,7 @@ class TestCase(db.Model):
     test_type = db.Column(db.Text())
 
     problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'))
-    problem = db.relationship('Problem',
-        backref=db.backref('tests', lazy='dynamic'))
+    problem = db.relationship('Problem', backref=db.backref('tests', lazy='dynamic'))
 
     def __init__(self, name, inp, out, test_type, problem):
         self.name = name
@@ -146,6 +158,8 @@ def serve_template(templatename, **kwargs):
         user = g.user
     return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, **kwargs)
 
+
+
 # A decorator for requiring admin privileges on routes
 def admin_required(f):
     @functools.wraps(f)
@@ -161,15 +175,27 @@ def admin_required(f):
 
 # Used to verify passwords submitted with those stored in our database
 @auth.verify_password
-def verify_password(username, password):
-    user = User.query.filter_by(username = username).first()
-    try:
-        if not user or not bcrypt_sha256.verify(password, user.pw_hash):
+def verify_password(username_or_token, password):
+    user = User.verify_auth_token(username_or_token)
+    if not user:
+        user = User.query.filter_by(username = username_or_token).first()
+        try:
+            if not user or not bcrypt_sha256.verify(password, user.pw_hash):
+                return False
+        except ValueError:
             return False
-    except ValueError:
-        return False
     g.user = user
     return True
+
+
+@auth.verify_token
+def verify_token(token):
+    token = AuthToken.query.filter_by(token=token).first()
+    if token is not None:
+        g.current_user = User.query.filter_by(username=token.username)
+        return True
+    return False
+
 
 @app.route("/")
 @app.route("/index")
