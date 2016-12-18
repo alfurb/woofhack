@@ -18,7 +18,7 @@ from mako.template import Template
 from mako.lookup import TemplateLookup
 from flask_httpauth import HTTPTokenAuth
 from flask_sqlalchemy import SQLAlchemy
-from itsdangerous import (TimedSerializer as Serializer, BadSignature, SignatureExpired)
+from itsdangerous import (URLSafeTimedSerializer as Serializer, BadSignature, SignatureExpired)
 
 
 app = Flask(__name__, static_url_path='/static')
@@ -53,8 +53,7 @@ class User(db.Model):
 
     def generate_auth_token(self):
         s = Serializer(app.config['SECRET_KEY'])
-        print(s)
-        t = s.dumps(self.username)
+        t = s.dumps({'username': self.username})
         db.session.add(AuthToken(self.username, t))
         db.session.commit()
         return t
@@ -169,16 +168,29 @@ def serve_template(templatename, **kwargs):
         user = g.user
     return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, **kwargs)
 
+def login_required(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        if not "session_token" in session:
+            abort(403)
+        elif verify_token(session["session_token"]):
+            print("hey")
+            return f(*args, **kwargs)
+        else:
+            abort(403)
 
+    return wrapped
 
 # A decorator for requiring admin privileges on routes
 def admin_required(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        if not auth.username():
+        if not "session_token" in session:
             abort(403)
         else:
-            user = User.query.filter_by(username=auth.username()).first()
+            user = verify_token(session["session_token"])
+            if user is None:
+                abort(403)
             if not user.admin:
                 abort(403)
         return f(*args, **kwargs)
@@ -198,11 +210,16 @@ def verify_password(username, password):
 
 @auth.verify_token
 def verify_token(token):
-    token = AuthToken.query.filter_by(token=token).first()
-    if token is not None:
-        g.current_user = User.query.filter_by(username=token.username)
-        return True
-    return False
+    s = Serializer(app.config['SECRET_KEY'])
+    print(token)
+    try:
+        data = s.loads(token)
+    except SignatureExpired:
+        return None  # valid token, but expired
+    except BadSignature:
+        return None  # invalid token
+    user = User.query.filter_by(username=data['username']).first()
+    return user
 
 
 @app.route("/")
@@ -220,9 +237,8 @@ def login():
     username = request.form.get("username")
     password = request.form.get("password")
     if verify_password(username, password):
-        resp = make_response(serve_template('index.html',problems=Problem.query.all(), alert=Alert("Success", "success", username + " logged in")))
-        resp.set_cookie(key='auth_token', value=g.user.generate_auth_token())
-        return resp
+        session["session_token"] = g.user.generate_auth_token()
+        return serve_template('login.html', alert=Alert('Success', 'success', username + 'logged in'))
     else:
         return serve_template('login.html', alert=Alert('Error', 'danger', 'Could not log in ' + username))
 
@@ -306,7 +322,7 @@ def scoreboard():
     return serve_template("scoreboard.html", problems=problems, user_mappings=user_mappings)
 
 @app.route("/submit/<title>", methods=['GET', 'POST'])
-@auth.login_required
+@login_required
 def submit(title):
     prob = Problem.query.filter_by(title = title).first()
     if not prob:
@@ -381,7 +397,7 @@ def run(problem, submission_folder_path, file_path, language):
 
 
 @app.route("/new_problem", methods=['GET', 'POST'])
-@auth.login_required
+@login_required
 @admin_required
 def new_problem():
     if request.method == 'GET':
