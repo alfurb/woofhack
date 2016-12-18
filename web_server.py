@@ -170,12 +170,12 @@ def login_required(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
         if not "session_token" in session:
-            abort(403)
+            abort(401)
         g.user = verify_token(session["session_token"])
         if g.user != None:
             return f(*args, **kwargs)
         else:
-            abort(403)
+            abort(401)
 
     return wrapped
 
@@ -218,9 +218,11 @@ def index():
     p = Problem.query.all()
     return serve_template("index.html", problems=p)
 
-
+@app.errorhandler(401)
 @app.route("/login", methods=["GET", "POST"])
-def login():
+def login(e=None):
+    if e:
+        add_alert(Alert("Warning", "warning", "Tried to access unauthorized resource, log in first."))
     if request.method == "GET":
         return serve_template("login.html")
 
