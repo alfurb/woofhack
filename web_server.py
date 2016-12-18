@@ -338,14 +338,14 @@ def new_problem():
     if request.method == 'GET':
         return serve_template("new_problem.html")
     #try:
-    title = request.form["title"]
-    summary = request.form["summary"]
-    descr = request.files["description"]
-    examples = request.files["testcases"]
+    title = request.form.get("title")
+    summary = request.form.get("summary")
+    descr = request.files.get("description")
+    examples = request.files.get("testcases")
 
     descr = description_to_html(descr)
 
-    prob = Problem(title, descr, datetime.now())
+    prob = Problem(title, descr, summary, datetime.now())
     db.session.add(prob)
 
     insert_tests_from_json(examples, db, prob)
