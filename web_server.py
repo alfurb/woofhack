@@ -12,17 +12,18 @@ from difflib import ndiff
 
 import markdown2
 from passlib.hash import bcrypt_sha256
-from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash, make_response
 from werkzeug.utils import secure_filename
 from mako.template import Template
 from mako.lookup import TemplateLookup
-from flask_httpauth import HTTPBasicAuth
+from flask_httpauth import HTTPTokenAuth
 from flask_sqlalchemy import SQLAlchemy
+from itsdangerous import (URLSafeTimedSerializer as Serializer, BadSignature, SignatureExpired)
 
 
 app = Flask(__name__, static_url_path='/static')
 app.config.from_object(__name__)
-auth = HTTPBasicAuth()
+auth = HTTPTokenAuth(scheme='Token')
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
@@ -50,6 +51,12 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % self.username
 
+    def generate_auth_token(self):
+        s = Serializer(app.config['SECRET_KEY'])
+        t = s.dumps({'username': self.username})
+        return t
+
+
 class Problem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(80), unique=True)
@@ -74,8 +81,7 @@ class TestCase(db.Model):
     test_type = db.Column(db.Text())
 
     problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'))
-    problem = db.relationship('Problem',
-        backref=db.backref('tests', lazy='dynamic'))
+    problem = db.relationship('Problem', backref=db.backref('tests', lazy='dynamic'))
 
     def __init__(self, name, inp, out, test_type, problem):
         self.name = name
@@ -144,23 +150,40 @@ def serve_template(templatename, **kwargs):
     user = None
     if hasattr(g, "user"):
         user = g.user
-    return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, **kwargs)
+    if "session_token" in session:
+        logged_in = True
+    else:
+        logged_in = False
+    return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, logged_in=logged_in, **kwargs)
+
+def login_required(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        if not "session_token" in session:
+            abort(403)
+        elif verify_token(session["session_token"]):
+            return f(*args, **kwargs)
+        else:
+            abort(403)
+
+    return wrapped
 
 # A decorator for requiring admin privileges on routes
 def admin_required(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        if not auth.username():
+        if not "session_token" in session:
             abort(403)
         else:
-            user = User.query.filter_by(username=auth.username()).first()
+            user = verify_token(session["session_token"])
+            if user is None:
+                abort(403)
             if not user.admin:
                 abort(403)
         return f(*args, **kwargs)
     return wrapped
 
 # Used to verify passwords submitted with those stored in our database
-@auth.verify_password
 def verify_password(username, password):
     user = User.query.filter_by(username = username).first()
     try:
@@ -171,11 +194,48 @@ def verify_password(username, password):
     g.user = user
     return True
 
+
+def verify_token(token):
+    s = Serializer(app.config['SECRET_KEY'])
+    try:
+        data = s.loads(token)
+    except SignatureExpired:
+        return None  # valid token, but expired
+    except BadSignature:
+        return None  # invalid token
+    user = User.query.filter_by(username=data['username']).first()
+    return user
+
+
 @app.route("/")
 @app.route("/index")
 def index():
     p = Problem.query.all()
     return serve_template("index.html", problems=p)
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return serve_template("login.html")
+    if "logout" in request.form:
+        return logout()
+
+    username = request.form.get("username")
+    password = request.form.get("password")
+    if verify_password(username, password):
+        session["session_token"] = g.user.generate_auth_token()
+        return serve_template('login.html', alert=Alert('Success', 'success', str(username) + ' logged in'))
+    else:
+        return serve_template('login.html', alert=Alert('Error', 'danger', 'Could not log in ' + str(username)))
+
+def logout():
+    if not "session_token" in session or session["session_token"] is None:
+        return serve_template('login.html', alert=Alert('Woops', 'warning', 'There was no one logged in'))
+    else:
+        user = verify_token(session["session_token"])
+        del session["session_token"]
+        return serve_template('login.html', alert=Alert('Success', 'success', str(user.username) + ' logged out'))
 
 
 @app.route("/static/<item>")
@@ -220,7 +280,6 @@ def register():
         else:
             return serve_template("register.html", alert=Alert("Success", "success", "New User registered"))
     except Exception as e:
-        print(e)
         db.session.rollback()
         abort(500)
 
@@ -236,10 +295,6 @@ def scoreboard():
     # Create mapping from each user to the list of problems and the classification they have
     problems = Problem.query.all()
     users = User.query.all()
-    for i in Submission.query.all():
-        print(i.user.username, i.classification, i.problem.title)
-    print(problems)
-    print(users)
     # [("sigurjon", [("sum", "Denied"), ("minus", "Accepted")])]
     user_mappings = []
     for user in users:
@@ -257,7 +312,7 @@ def scoreboard():
     return serve_template("scoreboard.html", problems=problems, user_mappings=user_mappings)
 
 @app.route("/submit/<title>", methods=['GET', 'POST'])
-@auth.login_required
+@login_required
 def submit(title):
     prob = Problem.query.filter_by(title = title).first()
     if not prob:
@@ -291,12 +346,10 @@ def submit(title):
 
 def run(problem, submission_folder_path, file_path, language):
     """returns a tuple of classification and a list of tuples (test, classification, message, accepted)"""
-    print(language)
     if language == "c++":
         output_path = os.path.join(submission_folder_path, 'compiled')
         p = subprocess.Popen(["g++", "-o", output_path, file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate()
-        print("compile", output)
         if output[1]:
             error = output[1].decode()
             # If we unsuccessfully compile we send back a list with one element
@@ -310,7 +363,6 @@ def run(problem, submission_folder_path, file_path, language):
     for test in problem.tests:
         p = subprocess.Popen(run_commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output = p.communicate(input=test.inp.encode())
-        print("run", output)
         # Convert byte string to utf8 string
         stdout = output[0].decode().strip()
         if p.returncode != 0:
@@ -332,12 +384,12 @@ def run(problem, submission_folder_path, file_path, language):
 
 
 @app.route("/new_problem", methods=['GET', 'POST'])
-@auth.login_required
+@login_required
 @admin_required
 def new_problem():
     if request.method == 'GET':
         return serve_template("new_problem.html")
-    #try:
+
     title = request.form.get("title")
     summary = request.form.get("summary")
     descr = request.files.get("description")
@@ -350,9 +402,6 @@ def new_problem():
 
     insert_tests_from_json(examples, db, prob)
     db.session.commit()
-    # except Exception as e:
-    #     print(e)
-    #     abort(500)
     return serve_template("new_problem.html", alert = Alert('Success', 'success', 'New problem saved'))
 
 
