@@ -21,42 +21,22 @@
     <title>Woofhack</title>
 </head>
 <body>
-    <script>
-        function logout(){
-        var old_url = window.location.origin + "${url_for('new_problem')}";
-        console.log(old_url)
-        var str = old_url.replace("https://", "https://" + new Date().getTime() + "@");
-        console.log(str);
-        var xmlhttp;
-        if (window.XMLHttpRequest) xmlhttp=new XMLHttpRequest();
-        else xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
-        xmlhttp.onreadystatechange=function()
-        {
-          if (xmlhttp.readyState==4) {
-            location.reload();
-            window.location.href = window.location.origin;
-          }
-        }
-        xmlhttp.open("GET",str,true);
-        xmlhttp.setRequestHeader("Authorization","Basic YXNkc2E6")
-        xmlhttp.send();
-        return false;
-        }
-    </script>
     <h1>
         <a href="${url_for('index')}"><img src="/static/logo.png" alt="Logo" style="width:128px;height:148px;border:0;"></a>
-        Woofhack${' - you are ' + auth.username() + "?" if auth.username() else ""}
+        Woofhack${' - as ' + user.username if user else ""}
     </h1>
     <hr>
-    % if alert:
-    <div class="alert alert-${alert.alert_type}"><strong>${alert.alert_header}</strong> ${alert.alert_message}</div>
+    % if alerts:
+      % for alert in alerts:
+        <div class="alert alert-${alert.alert_type}"><strong>${alert.alert_header}</strong> ${alert.alert_message}</div>
+      % endfor
     % endif
     <div class="container-fluid">
         <ul class="nav nav-pills">
             <li ${'class="active"' if templatename == "index.html" else ''}><a href="${url_for('index')}">Problems</a></li>
             <li ${'class="active"' if templatename == "scoreboard.html" else ''}><a href="${url_for('scoreboard')}">Scoreboard</a></li>
             <li ${'class="active"' if templatename == "new_problem.html" else ''}><a href="${url_for('new_problem')}">New Problem</a></li>
-            % if logged_in:
+            % if user:
               <li><a href="${url_for('logout')}">Log Out</a></li>
             % else:
               <li ${'class="active"' if templatename == "register.html" else ''}><a href="${url_for('register')}">Register</a></li>

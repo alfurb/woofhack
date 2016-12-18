@@ -145,23 +145,33 @@ Result = namedtuple("Result", ["name", "classification", "input", "message", "ac
 
 # Wrapper to add a header to all Templates
 lookup = TemplateLookup(directories=['./templates'])
+alerts = []
+def add_alert(alert):
+    alerts.append(alert)
+
 def serve_template(templatename, **kwargs):
     template = lookup.get_template(templatename)
     user = None
-    if hasattr(g, "user"):
-        user = g.user
     if "session_token" in session:
-        logged_in = True
-    else:
-        logged_in = False
-    return template.render(auth=auth, url_for=url_for, templatename=templatename, user=user, logged_in=logged_in, **kwargs)
+        user = verify_token(session.get("session_token"))
+
+    send_alerts = list(alerts)
+    global alerts
+    alerts = list([])
+    return template.render(auth=auth,
+                           url_for=url_for,
+                           templatename=templatename,
+                           user=user,
+                           alerts=send_alerts,
+                           **kwargs)
 
 def login_required(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
         if not "session_token" in session:
             abort(403)
-        elif verify_token(session["session_token"]):
+        g.user = verify_token(session["session_token"])
+        if g.user != None:
             return f(*args, **kwargs)
         else:
             abort(403)
@@ -172,14 +182,8 @@ def login_required(f):
 def admin_required(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        if not "session_token" in session:
+        if not g.user.admin:
             abort(403)
-        else:
-            user = verify_token(session["session_token"])
-            if user is None:
-                abort(403)
-            if not user.admin:
-                abort(403)
         return f(*args, **kwargs)
     return wrapped
 
@@ -223,19 +227,22 @@ def login():
     password = request.form.get("password")
     if verify_password(username, password):
         session["session_token"] = g.user.generate_auth_token()
+        add_alert(Alert("Success", "success", "User logged in"))
         return redirect("index")
     else:
-        return serve_template('login.html', alert=Alert('Error', 'danger', 'Could not log in ' + str(username)))
+        add_alert(Alert('Error', 'danger', 'Wrong password for user ' + str(username)))
+        return serve_template('login.html')
 
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
     if not "session_token" in session or session["session_token"] is None:
-        return serve_template('login.html', alert=Alert('Woops', 'warning', 'There was no one logged in'))
+        add_alert(Alert("Warning", "warning", "No user was logged in"))
+        return redirect('login')
     else:
         user = verify_token(session["session_token"])
         del session["session_token"]
-        return serve_template('login.html', alert=Alert('Success', 'success', str(user.username) + ' logged out'))
-
+        add_alert(Alert("Success", "success", "User logged out"))
+        return redirect('login')
 
 @app.route("/static/<item>")
 def statix_file(item):
@@ -254,20 +261,24 @@ def register():
     admin_value = False
 
     if not username or not password or not password_repeated:
-        return serve_template("register.html", alert = Alert('Error', 'danger', 'All fields must be filled out.'))
+        add_alert(Alert("Error", "danger", "All fields must be filled out."))
+        return serve_template("register.html")
 
     if password != password_repeated:
-        return serve_template("register.html", alert = Alert('Error', 'danger', 'Passwords must match.'))
+        add_alert(Alert("Error", "danger", "Passwords must match."))
+        return serve_template("register.html")
 
     # User already exists
     if User.query.filter_by(username = username).first():
-        return serve_template("register.html", alert = Alert('Error', 'danger', 'User already exists.'))
+        add_alert(Alert("Error", "danger", "User already exists."))
+        return serve_template("register.html")
 
     if request.form.get("admin"):
         if check_admin_code(admin_code):
             admin_value = True
         else:
-            return serve_template("register.html", alert=Alert("Error", "error", "Wrong or no Admin Code"))
+            add_alert(Alert("Error", "danger", "Wrong or no Admin Code."))
+            return serve_template("register.html")
 
     try:
         password = bcrypt_sha256.hash(password)
@@ -275,9 +286,11 @@ def register():
         db.session.add(user)
         db.session.commit()
         if admin_value:
-            return serve_template("register.html", alert=Alert("Success", "success", "New Admin registered"))
+            add_alert(Alert("Success", "success", "New Admin registered"))
+            return redirect("index")
         else:
-            return serve_template("register.html", alert=Alert("Success", "success", "New User registered"))
+            add_alert(Alert("Success", "success", "New User registered"))
+            return redirect("index")
     except Exception as e:
         db.session.rollback()
         abort(500)
@@ -394,6 +407,14 @@ def new_problem():
     descr = request.files.get("description")
     examples = request.files.get("testcases")
 
+    if not all([title, summary, descr, examples]):
+        add_alert(Alert("Error", "danger", "All fields must be included."))
+        return serve_template("new_problem.html")
+
+    if Problem.query.filter_by(title=title).first() != None:
+        add_alert(Alert("Error", "danger", "A problem with that name already exists."))
+        return serve_template("new_problem.html")
+
     descr = description_to_html(descr)
 
     prob = Problem(title, descr, summary, datetime.now())
@@ -401,8 +422,8 @@ def new_problem():
 
     insert_tests_from_json(examples, db, prob)
     db.session.commit()
-    return serve_template("new_problem.html", alert = Alert('Success', 'success', 'New problem saved'))
-
+    add_alert(Alert('Success', 'success', 'New problem saved'))
+    return serve_template("new_problem.html")
 
 def description_to_html(descr):
     return markdown2.markdown(descr.read().decode('utf-8'))
