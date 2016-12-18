@@ -205,8 +205,7 @@ def register():
         return serve_template("register.html", alert = Alert('Error', 'danger', 'User already exists.'))
 
     if request.form.get("admin"):
-        code_hashes = AdminCode.query.first()
-        if bcrypt_sha256.verify(admin_code, code_hashes.code_hash):
+        if check_admin_code(admin_code):
             admin_value = True
         else:
             return serve_template("register.html", alert=Alert("Error", "error", "Wrong or no Admin Code"))
@@ -224,6 +223,13 @@ def register():
         print(e)
         db.session.rollback()
         abort(500)
+
+def check_admin_code(admin_code):
+    code_hashes = AdminCode.query.all()
+    for c in code_hashes:
+        if bcrypt_sha256.verify(admin_code, c.code_hash):
+            return True
+    return False
 
 @app.route('/scoreboard', methods=["GET"])
 def scoreboard():
