@@ -5,7 +5,7 @@ using namespace std;
 int main() {
   int a, b;
   cin >> a >> b;
-  cout << "1245";
+  cout << a - b;
   // Compile time error
   //char c
   // To make a run time error
